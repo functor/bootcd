@@ -1,0 +1,12 @@
+id:1:initdefault:
+
+si::sysinit:/etc/init.d/pl_sysinit
+
+l1:1:wait:/sbin/sulogin
+
+u6:6:wait:/bin/umount -a -r 
+r6:6:wait:/sbin/shutdown -r -n now
+u0:0:wait:/bin/umount -a -r 
+h0:0:wait:/sbin/shutdown -h -n now
+
+ca::ctrlaltdel:/sbin/shutdown -t3 -r now
