@@ -68,6 +68,20 @@ function build_cdroot()
     echo "install boot cd base rpms"
     yum -c yum.conf --installroot=$CD_ROOT -y groupinstall $BOOTCD_YUM_GROUP
 
+    echo "checking to make sure rpms were installed"
+    packages=`cat yumgroups.xml | grep packagereq | sed 's#<[^<]*>##g'`
+    set +e
+    for package in $packages; do
+	echo "checking for package $package"
+	chroot $CD_ROOT /bin/rpm -qi $package > /dev/null
+	if [[ "$?" -ne 0 ]]; then
+	    echo "package $package was not installed in the cd root."
+	    echo "make sure it exists in the yum repository."
+	    exit 1
+	fi
+    done
+    set -e
+    
     echo "removing unneccessary build files"
     (cd $CD_ROOT/lib/modules && \
 	find ./ -type d -name build -maxdepth 2 -exec rm -rf {} \;)
