@@ -1,0 +1,223 @@
+#!/bin/sh
+
+# the name of the floppy based network configuration
+# files (checked first). the name planet.cnf is kept
+# for backward compatibility with old nodes
+FLOPPY_NET_CONF=planet.cnf
+
+# location of cd-based network configuration file
+# (checked if floppy conf file missing)
+USER_NET_CONF=/usr/boot/user-net.cnf
+
+# if all other network configuration file sources 
+# don't exist, fall back to this one (always on the cd)
+FALLBACK_NET_CONF=/usr/boot/default-net.cnf
+
+# once a configuration file is found, save it in /tmp
+# (may be used later by boot scripts)
+USED_NET_CONF=/tmp/planet.cnf
+
+# default device to use for contacting PLC
+DEFAULT_NET_DEV=eth0
+
+# where to store the temporary dhclient conf file
+DHCLIENT_CONF_FILE=/tmp/dhclient.conf
+
+# which fs types we support floppy disks in
+FLOPPY_FS_TYPES="msdos,ext2"
+
+FLOPPY_MOUNT_POINT=/mnt/floppy
+/bin/mkdir -p $FLOPPY_MOUNT_POINT
+
+
+net_init_failed()
+{
+    echo
+    echo "pl_netinit: network initialization failed,"
+    echo "pl_netinit: shutting down machine in two hours"
+    /bin/sleep 7200
+    /sbin/shutdown -h now
+    exit 1
+}
+
+# Function for checking the IP address to see if its sensible.
+check_ip()
+{
+    case "$*" in
+        "" | *[!0-9.]* | *[!0-9]) return 1 ;;
+    esac
+    local IFS=.
+    set -- $*
+    [ $# -eq 4 ] &&
+    [ ${1:-666} -le 255 ] && [ ${2:-666} -le 255 ] &&
+    [ ${3:-666} -le 255 ] && [ ${4:-666} -le 255 ]
+}
+
+echo "pl_netinit: bringing loopback network device up"
+/sbin/ifconfig lo 127.0.0.1 up
+
+
+DEFAULT_NET_CONF=0
+FOUND_NET_CONF=0
+
+echo "pl_netinit: looking for network configuration on floppy"
+/bin/mount -o ro -t $FLOPPY_FS_TYPES /dev/fd0 $FLOPPY_MOUNT_POINT 2>&1 > /dev/null
+if [[ $? -eq 0 ]]; then
+    floppy_conf_file="$FLOPPY_MOUNT_POINT/$FLOPPY_NET_CONF"
+    if [ -r "$floppy_conf_file" ]; then
+
+	echo "pl_netinit: found floppy configuration file, using"
+	/etc/init.d/pl_validateconf < $floppy_conf_file > $USED_NET_CONF
+	FOUND_NET_CONF=1
+    else
+	echo "pl_netinit: floppy mounted, but no configuration file."
+    fi
+    /bin/umount $FLOPPY_MOUNT_POINT
+else
+    echo "pl_netinit: no floppy found"
+fi
+
+
+if [[ $FOUND_NET_CONF -eq 0 ]]; then
+    echo "pl_netinit: looking for network configuration on cd"
+    if [ -r "$USER_NET_CONF" ]; then
+
+	echo "pl_netinit: found cd configuration file, using"
+	/etc/init.d/pl_validateconf < $USER_NET_CONF > $USED_NET_CONF
+	FOUND_NET_CONF=1
+    fi
+fi
+
+if [[ $FOUND_NET_CONF -eq 0 ]]; then
+    echo "pl_netinit: using default network configuration"
+    if [ -r "$FALLBACK_NET_CONF" ]; then
+
+	echo "pl_netinit: found cd default configuration file, using"
+	/etc/init.d/pl_validateconf < $FALLBACK_NET_CONF > $USED_NET_CONF
+	FOUND_NET_CONF=1
+	DEFAULT_NET_CONF=1
+    fi
+fi
+
+
+if [[ $FOUND_NET_CONF -eq 0 ]]; then
+    # no network configuration file found. this should not happen as the
+    # default cd image has a backup one. halt.
+    echo "pl_netinit: unable to find even a default network configuration"
+    echo "pl_netinit: file, this cd may be corrupt."
+    net_init_failed
+fi
+
+# load the configuration file. if it was a default one (not user specified),
+# then remove the saved copy from /tmp, but continue on. since a network 
+# configuration file is required and boot scripts only know about this location
+# they will fail (as they should) - but the network will be up if dhcp is
+# available
+
+echo "pl_netinit: loading network configuration"
+. $USED_NET_CONF
+
+if [[ $DEFAULT_NET_CONF -eq 1 ]]; then
+    /bin/rm -f $USED_NET_CONF
+fi
+
+# now, we need to find which device to use (ie, eth0 or eth1). start out
+# by defaulting to eth0, then see if the network configuration file specified
+# either a mac address (in which case we will need to find the device), or
+# the device itself
+
+if [[ -n "$PRIMARY_MAC" ]]; then
+    # the user specified a mac address we should use. find the network
+    # device for it.
+    echo "pl_netinit: looking for a device with mac address $PRIMARY_MAC"
+
+    pushd .
+    cd /sys/class/net
+    for device in *; do
+	dev_address=`cat $device/address`
+	if [[ "$dev_address" == "$PRIMARY_MAC" ]]; then
+	    ETH_DEVICE=$device
+	    echo "pl_netinit: found device $ETH_DEVICE"
+	    break
+	fi
+    done
+    popd
+
+elif [[ -n "$PRIMARY_DEV" ]]; then
+    # the user specified a virtual ethernet device to use.
+    ETH_DEVICE=$PRIMARY_DEV
+    echo "pl_netinit: using user specified device $ETH_DEVICE"
+
+else
+    ETH_DEVICE=$DEFAULT_NET_DEV
+    echo "pl_netinit: using default device $ETH_DEVICE"
+
+fi
+
+
+# if we couldn't find a device (would happen if PRIMARY_MAC was specified
+# but we couldn't find a device for that addresS), then abort the rest
+# of the startup
+
+if [[ -z "$ETH_DEVICE" ]]; then
+    echo "pl_netinit: unable to find a usable device, check to make sure"
+    echo "pl_netinit: the PRIMARY_MAC field in the configuration file"
+    echo "pl_netinit: cooresponds with a network adapter on this system"
+    net_init_failed
+fi
+
+
+# actually check to make sure ifconfig <device> succeeds
+/sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "pl_netinit: device $ETH_DEVICE does not exist,"
+    echo "pl_netinit: this is due to either the device not existing,"
+    echo "pl_netinit: or its device drivers not being loaded"
+    net_init_failed
+fi
+
+if [[ "$IP_METHOD" == "dhcp" ]]; then
+    echo "pl_netinit: attempting to bring up device with dhcp"
+
+    # setup a dhclient conf file for this device (used to send
+    # our hostname to the dhcp server)
+    echo "interface \"$ETH_DEVICE\" {" > $DHCLIENT_CONF_FILE
+    echo "send host-name \"$HOST_NAME.$DOMAIN_NAME\";" >> $DHCLIENT_CONF_FILE
+    echo "}" >> $DHCLIENT_CONF_FILE
+
+    # touch the redhat net device configuration file so 
+    # dhclient doesn't complain
+    /bin/touch /etc/sysconfig/network-scripts/ifcfg-$ETH_DEVICE
+
+    configured=0
+    while [[ $configured -eq 0 ]]; do
+	/sbin/dhclient -1 -cf $DHCLIENT_CONF_FILE $ETH_DEVICE 
+	if [[ $? -ne 0 ]]; then
+	    echo "pl_netinit: dhcp failed, retrying in 2 minutes"
+	    /sbin/sleep 120
+	else
+	    echo "pl_netinit: dhcp succeeded"
+	    configured=1
+	    break
+	fi
+    done
+else
+    echo "pl_netinit: configuring device statically"
+
+    /sbin/ifconfig $ETH_DEVICE $IP_ADDRESS broadcast $IP_BROADCASTADDR \
+	netmask $IP_NETMASK
+    /sbin/route add default gw $IP_GATEWAY dev $ETH_DEVICE
+
+    if [[ -z "$IP_DNS1" ]]; then
+	echo "pl_netinit: no dns server specified, cannot continue."
+	net_init_failed
+    fi
+
+    echo "nameserver $IP_DNS1" > /etc/resolv.conf
+    if [[ -n "$IP_DNS2" ]]; then
+	echo "nameserver $IP_DNS2" >> /etc/resolv.conf
+    fi
+fi
+
+echo "pl_netinit: network online"
+
