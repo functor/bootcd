@@ -2,7 +2,7 @@
 
 set -e
 
-BOOTCD_VERSION="3.0-beta0.1"
+BOOTCD_VERSION="3.0-beta0.3"
 FULL_VERSION_STRING="PlanetLab BootCD $BOOTCD_VERSION"
 
 # which boot server to contact
