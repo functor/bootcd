@@ -45,6 +45,9 @@
       <packagereq type="mandatory">nano</packagereq>
       <packagereq type="mandatory">parted</packagereq>
       <packagereq type="mandatory">pyparted</packagereq>
+      <packagereq type="mandatory">openssh-server</packagereq>
+      <packagereq type="mandatory">openssh-clients</packagereq>
+      <packagereq type="mandatory">ncftp</packagereq>
     </packagelist>
   </group>
 
