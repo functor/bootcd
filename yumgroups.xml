@@ -41,7 +41,8 @@
       <packagereq type="mandatory">lvm</packagereq>
       <packagereq type="mandatory">lvm2</packagereq>
       <packagereq type="mandatory">kexec-tools</packagereq>
-      <packagereq type="mandatory">gpg</packagereq>
+      <packagereq type="mandatory">gnupg</packagereq>
+      <packagereq type="mandatory">nano</packagereq>
     </packagelist>
   </group>
 
