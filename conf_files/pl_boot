@@ -1,5 +1,108 @@
 #!/bin/sh
 
-echo "contact boot server here"
-/bin/sleep 1000
+# Run gpg once to create default options
+GNUPGHOME=/root
+export GNUPGHOME
+/usr/bin/gpg --yes 2>/dev/null </dev/null
 
+# where all the configuration files for contacting
+# the boot server are stored
+BOOT_DIR=/usr/boot/
+
+# get the server we are going to be contacting
+BOOT_SERVER=`cat $BOOT_DIR/boot_server`
+BOOT_SERVER_PORT=`cat $BOOT_DIR/boot_server_port`
+
+# the file to request from the boot server
+SERVER_BOOT_DIR=`cat $BOOT_DIR/boot_server_path`
+
+# location of the cacert for this boot server
+BOOT_CACERT=$BOOT_DIR/cacert.pem
+
+# location of the gpg key ring to verify scripts
+BOOT_GPG_KEYRING=$BOOT_DIR/pubring.gpg
+
+# location of a file containing this boot cd version
+BOOT_VERSION_FILE=/pl_version
+
+# the locations of the downloaded scripts
+UNVERIFIED_SCRIPT=/tmp/bootscript.gpg
+VERIFIED_SCRIPT=/tmp/bootscript
+
+# asemble the curl transaction
+CURL_CMD="/usr/bin/curl \
+   --connect-timeout 60 \
+   --max-time 600 \
+   --form version=<$BOOT_VERSION_FILE \
+   --form cmdline=</proc/cmdline \
+   --form uptime=</proc/uptime \
+   --form ifconfig=</tmp/ifconfig \
+   --form cpuinfo=</proc/cpuinfo \
+   --form meminfo=</proc/meminfo \
+   --form nonce=</tmp/nonce \
+   --location \
+   --output $UNVERIFIED_SCRIPT \
+   --sslv3  \
+   --silent \
+   --show-error \
+   --fail \
+   --stderr /tmp/curl_errors \
+   --cacert $BOOT_CACERT \
+   https://$BOOT_SERVER:$BOOT_SERVER_PORT/$SERVER_BOOT_DIR"
+
+
+# assemble the gpg command line
+GPG_CMD="/usr/bin/gpg \
+    --no-default-keyring \
+    --keyring $BOOT_GPG_KEYRING \
+    --output $VERIFIED_SCRIPT \
+    --always-trust \
+    --decrypt $UNVERIFIED_SCRIPT"
+
+
+# now, contact the boot server, run the script, and do it over again.
+first=1
+while true; do
+
+    if [[ $first -eq 0 ]]; then
+	echo "pl_boot: fetching new script in 30 seconds"
+	/bin/sleep 30
+    fi
+    first=0
+
+    echo "pl_boot: generating new nonce"
+    /usr/bin/head --bytes=32 /dev/urandom | \
+	/usr/bin/od -tx1 -An --width=32 | \
+	/bin/sed 's/ //g' > /tmp/nonce
+
+    echo "pl_boot: fetching script from boot server $BOOT_SERVER"
+    rm -f $UNVERIFIED_SCRIPT
+    $CURL_CMD
+    curl_err=$?
+    if [ $curl_err -ne 0 ]; then
+	echo "pl_boot: curl request failed with error $curl_err:"
+	cat /tmp/curl_errors
+	echo
+	continue
+    fi 
+
+    echo "pl_boot: verifing downloaded script"
+    rm -f $VERIFIED_SCRIPT
+    $GPG_CMD 2> /tmp/gpg_errors
+    if [ $? -ne 0 ]; then
+	echo "pl_boot: failed to verify file:"
+	cat /tmp/gpg_errors
+	echo
+	continue
+    fi
+    echo "pl_boot: decrypted and verified script succesfully"
+
+    echo "pl_boot: handing control to download script"
+    rm -f $UNVERIFIED_SCRIPT
+    chmod +x $VERIFIED_SCRIPT
+    $VERIFIED_SCRIPT
+    
+    echo "pl_boot: downloaded script has returned"
+done
+
+echo "pl_boot: automatic boot process canceled"
