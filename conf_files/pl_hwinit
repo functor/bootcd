@@ -2,7 +2,11 @@
 
 pci_table=/etc/pl_pcitable
 
+loaded_module_list=/tmp/loadedmodules
+
 echo "pl_hwinit: loading applicable modules"
+
+echo > $loaded_module_list
 
 # this will contain lines of device_id:vendor_id (no 0x)
 system_devices=$(lspci -n | cut -d " " -f4)
@@ -23,6 +27,7 @@ for device in $system_devices; do
 	if [ -n "$module" ]; then
 	    echo "pl_hwinit: found and loading module $module"
 	    /sbin/modprobe $module
+	    echo $module >> $loaded_module_list
 	fi
     done
 done
