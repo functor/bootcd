@@ -5,6 +5,9 @@ GNUPGHOME=/root
 export GNUPGHOME
 /usr/bin/gpg --yes 2>/dev/null </dev/null
 
+# if this file is present, cancel the boot (exit this script)
+CANCEL_BOOT_FLAG=/tmp/CANCEL_BOOT
+
 # where all the configuration files for contacting
 # the boot server are stored
 BOOT_DIR=/usr/boot/
@@ -64,6 +67,11 @@ GPG_CMD="/usr/bin/gpg \
 first=1
 while true; do
 
+    if [[ -f $CANCEL_BOOT_FLAG ]]; then
+	echo "pl_boot: got request to cancel boot, exiting"
+	exit 0
+    fi
+
     if [[ $first -eq 0 ]]; then
 	echo "pl_boot: fetching new script in 30 seconds"
 	/bin/sleep 30
@@ -105,4 +113,4 @@ while true; do
     echo "pl_boot: downloaded script has returned"
 done
 
-echo "pl_boot: automatic boot process canceled"
+echo "pl_boot: automatic boot process canceled by user"
