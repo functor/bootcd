@@ -23,7 +23,7 @@ ROOT_PASSWD='$1$IdEn2srw$/TfrjZSPUC1xP244YCuIi0'
 
 BOOTCD_YUM_GROUP=BootCD
 
-CDRECORD_FLAGS="-v -dao -blank=fast"
+CDRECORD_FLAGS="-v -dao"
 
 CONF_FILES_DIR=conf_files/
 
