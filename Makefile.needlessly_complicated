@@ -1,0 +1,154 @@
+VERSION:="3.0"
+FULL_VERSION_STRING:="PlanetLab BootCD $(VERSION)"
+ROOT_PASSWD:='$1$IdEn2srw$/TfrjZSPUC1xP244YCuIi0'
+CDRECORD_FLAGS:="-v -dao -blank=fast"
+
+SYSLINUX:=sources/syslinux-2.11.tar.bz2
+CD_IMAGE:=cd.iso
+CD_ROOT:=cdroot
+CD_PWD:=$(shell pwd)
+BOOTCD_YUM_GROUP:=BootCD
+
+INITRD_MOUNT:=rd
+CD_ROOT_USR:=usr-cd
+INITRD_SIZE:=64
+INITRD:=$(CD_ROOT)/$(CD_ROOT_USR)/isolinux/initrd
+
+CONF_FILES_DIR=conf_files
+
+PRE_CONF_FILES=etc/fstab \
+                   etc/mtab \
+                   etc/rpm/macros
+
+POST_CONF_FILES=etc/inittab \
+                etc/init.d/pl_hwinit \
+                etc/init.d/pl_sysinit \
+                etc/modprobe.conf \
+                etc/hosts
+
+# directories in the cd root to move to /usr/relocated to reduce ramdisk size
+RELOCATE_DIRS=$(CD_ROOT)/lib/tls \
+              $(CD_ROOT)/var/lib/rpm
+
+RELOCATE_DEST_DIR=usr/relocated
+
+CD_PRE_CONF_FILES:=$(patsubst %,$(CD_ROOT)/%,$(PRE_CONF_FILES))
+CD_POST_CONF_FILES:=$(patsubst %,$(CD_ROOT)/%,$(POST_CONF_FILES))
+CD_RELOCATED_DIRS:=$(patsubst %,$(CD_ROOT)/usr/relocated/%,$(RELOCATE_DIRS))
+
+all: $(CD_IMAGE)
+
+
+$(CD_IMAGE): $(CD_PRE_CONF_FILES) $(CD_POST_CONF_FILES) $(CD_ROOT)/.built $(CD_ROOT)/.config $(INITRD).gz $(CD_RELOCATED_DIRS)
+	@echo "building iso"
+	mkisofs -o $(CD_IMAGE) -R -allow-leading-dots -J -r \
+            -b isolinux/isolinux.bin -c isolinux/boot.cat \
+            -no-emul-boot -boot-load-size 4 -boot-info-table \
+	    -V PlanetLab-3-0 $(CD_ROOT)/usr
+
+
+$(CD_ROOT)/.built: $(PRE_YUM)
+	@echo "initialize rpm db"
+
+	mkdir -p $(CD_ROOT)/var/lib/rpm
+	rpm --root $(CD_PWD)/$(CD_ROOT) --initdb
+
+	@echo "install boot cd base rpms"
+	yum -c yum.conf --installroot=$(CD_PWD)/$(CD_ROOT) \
+            -y groupinstall $(BOOTCD_YUM_GROUP)
+
+	touch $(CD_ROOT)/.built
+
+$(CD_RELOCATED_DIRS): $(CD_ROOT)/.built
+$(CD_RELOCATED_DIRS): $(CD_ROOT)/$(RELOCATE_DEST_DIR)% : $(CD_ROOT)/%
+	@echo "relocate some large directories out of the root system"
+	mkdir -p $@
+	mv $< $@
+	ln -s $@ $<
+
+
+$(CD_PRE_CONF_FILES): $(CD_ROOT)/% : $(CONF_FILES_DIR)/%
+	mkdir -p $(dir $@)
+	cp -a $< $@
+
+
+$(CD_POST_CONF_FILES): $(CD_ROOT)/.built $(CD_ROOT)/etc/pl_pcitable
+
+$(CD_POST_CONF_FILES): $(CD_ROOT)/% : $(CONF_FILES_DIR)/%
+	mkdir -p $(dir $@)
+	cp -a $< $@
+
+
+$(CD_ROOT)/usr/isolinux/.built:
+	@echo "extracting syslinux, copying isolinux files to cd"
+
+	mkdir -p syslinux
+	mkdir -p $(CD_ROOT)/usr/isolinux/
+
+	tar -C syslinux -xjvf $(SYSLINUX)
+	find syslinux -name isolinux.bin -exec cp -f {} $(CD_ROOT)/usr/isolinux/ \;
+
+	cp -f $(CONF_FILES_DIR)/usr/isolinux/isolinux.cfg $(CD_ROOT)/usr/isolinux/
+	echo "$(FULL_VERSION_STRING)" > $(CD_ROOT)/usr/isolinux/message.txt
+
+	touch $(CD_ROOT)/usr/isolinux/.built
+
+
+$(CD_ROOT)/etc/pl_pcitable:
+	scripts/rewrite-pcitable.py \
+	    $(wildcard $(CD_ROOT)/lib/modules/*/modules.pcimap) \
+	    $(CD_ROOT)/etc/pl_pcitable
+
+
+$(INITRD).gz: $(CD_ROOT)/.built
+	(cd $(CD_ROOT) && mv usr $(CD_ROOT_USR))
+	mkdir $(CD_ROOT)/usr
+
+	dd if=/dev/zero of=$(INITRD) bs=1M count=$(INITRD_SIZE)
+	mkfs.ext2 -F -m 0 -i 1024 $(INITRD)
+
+	mkdir -p $(INITRD_MOUNT)
+	mount -o loop,rw $(INITRD) $(INITRD_MOUNT)
+	(cd $(CD_ROOT) && tar --exclude $(CD_ROOT_USR) -cf initrdcontents.tar *)
+	tar -C $(INITRD_MOUNT) -xf $(CD_ROOT)/initrdcontents.tar
+	umount $(INITRD_MOUNT)
+	rmdir $(INITRD_MOUNT)
+
+	gzip $(INITRD)
+
+	rm -f $(CD_ROOT)/initrdcontents.tar
+	rmdir $(CD_ROOT)/usr
+	(cd $(CD_ROOT) && mv $(CD_ROOT_USR) usr)
+
+
+$(CD_ROOT)/.config: $(CD_ROOT)/.built $(CD_ROOT)/usr/isolinux/.built
+	@echo "removing unneccessary build files"
+	rm -rf $(wildcard $(CD_ROOT)/lib/modules/*/build/)
+
+	@echo "setting up non-ssh authentication"
+	mkdir -p $(CD_ROOT)/etc/samba
+	chroot $(CD_ROOT) /usr/sbin/authconfig --nostart --kickstart \
+            --enablemd5 --enableshadow
+
+	@echo "setting root password"
+	sed -i "s#root::#root:$(ROOT_PASSWD):#g" $(CD_ROOT)/etc/shadow
+
+	echo "$(FULL_VERSION_STRING)" > $(CD_ROOT)/usr/isolinux/pl_version
+	echo "$(FULL_VERSION_STRING)" > $(CD_ROOT)/pl_version
+
+
+	echo "moving kernel to isolinux directory"
+	mkdir -p $(CD_ROOT)/usr/isolinux/
+	mv -f $(wildcard $(CD_ROOT)/boot/vmlinuz-*) $(CD_ROOT)/usr/isolinux/kernel
+
+
+
+cdr: $(CD_IMAGE)
+	cdrecord $(CDRECORD_FLAGS) -data $(CD_IMAGE)
+
+clean:
+	rm -rf $(CD_ROOT)
+	rm -f $(CD_IMAGE)
+
+
+.PHONY: all cdr clean

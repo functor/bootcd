@@ -1,0 +1,42 @@
+#!/bin/sh
+
+pci_table=/etc/pl_pcitable
+
+echo "pl_hwinit: loading applicable modules"
+
+# this will contain lines of device_id:vendor_id (no 0x)
+system_devices=$(lspci -n | cut -d " " -f4)
+
+for device in $system_devices; do
+
+    # now vendor_id and device_id are broken apart
+    vendor_id=$(echo $device | cut -d ":" -f1)
+    device_id=$(echo $device | cut -d ":" -f2)
+
+    # either exactly match vendor:device, or a vendor:ffff (let the module
+    # figure out if it can be used for this device), or ffff:device
+    # (not sure if this is legal, but shows up in the pci map)
+    mods=$(grep -i "\($vendor_id:ffff\|$vendor_id:$device_id\|ffff:$device_id\)" \
+	$pci_table | cut -d " " -f1)
+
+    for module in $mods; do
+	if [ -n "$module" ]; then
+	    echo "pl_hwinit: found and loading module $module"
+	    /sbin/modprobe $module
+	fi
+    done
+done
+
+# just in case, look for any modules that are ffff:ffff and load them
+mods=$(grep -i "ffff:ffff" $pci_table | cut -d " " -f1)
+for module in $mods; do
+    if [ -n "$module" ]; then
+	echo "pl_hwinit: found and loading wild module $module"
+	/sbin/modprobe $module
+    fi
+done
+
+# sd_mod won't get loaded automatically
+echo "pl_hwinit: loading sd_mod"
+/sbin/modprobe sd_mod
+
