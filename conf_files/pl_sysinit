@@ -5,9 +5,6 @@ echo "pl_sysinit: bringing system online"
 echo "pl_sysinit: mounting file systems"
 /bin/mount -v -a
 
-echo "pl_sysinit: bringing loopback network device up"
-/sbin/ifconfig lo 127.0.0.1 up
-
 echo "pl_sysinit: invoking hardware initialization script"
 /etc/init.d/pl_hwinit
 
@@ -20,10 +17,11 @@ mkdir /usr
 for device in $test_devices; do
     device=$(/bin/basename $device)
 
-    # skipping any devices that start with md or ra (ram) or lo (loop)
+    # skipping any devices that start with md or ra (ram) or lo (loop) or
+    # fd (floppy)
     start_device=${device:0:2}
     if [ "$start_device" == "ra" ] || [ "$start_device" == "md" ] ||
-	[ "$start_device" == "lo" ]; then
+	[ "$start_device" == "lo" ] || [ "$start_device" == "fd" ]; then
 	continue
     fi
     
@@ -73,4 +71,8 @@ if [ -n "$MAJOR" ] && [ -n "$MINOR" ]; then
 else
     echo "pl_sysinit: unable to create device mapper control node, continuing"
 fi
+
+
+echo "pl_sysinit: bringing network online"
+/etc/init.d/pl_netinit
 
