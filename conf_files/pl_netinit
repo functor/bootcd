@@ -29,6 +29,10 @@ FLOPPY_FS_TYPES="msdos,ext2"
 FLOPPY_MOUNT_POINT=/mnt/floppy
 /bin/mkdir -p $FLOPPY_MOUNT_POINT
 
+# for some backwards compatibility, save the ifconfig <device>
+# output to this file
+IFCONFIG_OUTPUT=/tmp/ifconfig
+
 
 net_init_failed()
 {
@@ -218,6 +222,9 @@ else
 	echo "nameserver $IP_DNS2" >> /etc/resolv.conf
     fi
 fi
+
+# for backwards compatibility
+/sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT
 
 echo "pl_netinit: network online"
 
