@@ -1,12 +1,13 @@
-id:1:initdefault:
-
-si::sysinit:/etc/init.d/pl_sysinit
-
-l1:1:wait:/sbin/sulogin
+id:2:initdefault:
+si:S:sysinit:/etc/init.d/pl_sysinit
+sb:S:boot:/etc/init.d/pl_boot
 
 u6:6:wait:/bin/umount -a -r 
-r6:6:wait:/sbin/shutdown -r -n now
+r6:6:wait:/sbin/shutdown -r now
 u0:0:wait:/bin/umount -a -r 
-h0:0:wait:/sbin/shutdown -h -n now
+h0:0:wait:/sbin/shutdown -h now
 
 ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+
+c1:12345:respawn:/sbin/agetty 38400 tty1 linux
+c2:12345:respawn:/sbin/agetty 38400 tty2 linux
