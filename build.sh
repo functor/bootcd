@@ -34,7 +34,7 @@ INITRD=$CD_ROOT/usr/isolinux/initrd
 INITRD_MOUNT=`pwd`/rd
 
 # size of the ram disk in MB
-RAMDISK_SIZE=48
+RAMDISK_SIZE=64
 
 # the bytes per inode ratio (the -i value in mkfs.ext2) for the ramdisk
 INITRD_BYTES_PER_INODE=1024
@@ -181,8 +181,10 @@ function build_initrd()
     mount -o loop,rw $INITRD $INITRD_MOUNT
 
     echo "copy all files except usr to ramdisk"
-    (cd $CD_ROOT && find . -path ./usr -prune -o -print | \
-	cpio -p -d -u $INITRD_MOUNT)
+    pushd .
+    cd $CD_ROOT
+    find . -path ./usr -prune -o -print | cpio -p -d -u $INITRD_MOUNT
+    popd
 
     umount $INITRD_MOUNT
     rmdir $INITRD_MOUNT
