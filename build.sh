@@ -2,8 +2,17 @@
 
 set -e
 
-BOOTCD_VERSION="3.0"
+BOOTCD_VERSION="3.0-beta0.1"
 FULL_VERSION_STRING="PlanetLab BootCD $BOOTCD_VERSION"
+
+# which boot server to contact
+BOOTSERVER='boot.planet-lab.org'
+
+# and on which port (protocol will be https)
+BOOTSERVER_PORT='443'
+
+# finally, what path to request from the server
+BOOTSERVER_PATH='boot/'
 
 SYSLINUX_SRC=sources/syslinux-2.11.tar.bz2
 
@@ -126,7 +135,14 @@ function build_initrd()
 
     echo "setup default network conf file"
     mkdir -p $CD_ROOT/usr/boot
-    cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot
+    cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot/
+
+    echo "setup boot server configuration"
+    cp -f $CONF_FILES_DIR/cacert.pem $CD_ROOT/usr/boot/
+    cp -f $CONF_FILES_DIR/pubring.gpg $CD_ROOT/usr/boot/
+    echo "$BOOTSERVER" > $CD_ROOT/usr/boot/boot_server
+    echo "$BOOTSERVER_PORT" > $CD_ROOT/usr/boot/boot_server_port
+    echo "$BOOTSERVER_PATH" > $CD_ROOT/usr/boot/boot_server_path
 
     echo "copying isolinux configuration files"
     cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
