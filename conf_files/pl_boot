@@ -94,7 +94,7 @@ while true; do
 	continue
     fi 
 
-    echo "pl_boot: verifing downloaded script"
+    echo "pl_boot: verifying downloaded script"
     rm -f $VERIFIED_SCRIPT
     $GPG_CMD 2> /tmp/gpg_errors
     if [ $? -ne 0 ]; then
