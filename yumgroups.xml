@@ -43,6 +43,8 @@
       <packagereq type="mandatory">kexec-tools</packagereq>
       <packagereq type="mandatory">gnupg</packagereq>
       <packagereq type="mandatory">nano</packagereq>
+      <packagereq type="mandatory">parted</packagereq>
+      <packagereq type="mandatory">pyparted</packagereq>
     </packagelist>
   </group>
 
