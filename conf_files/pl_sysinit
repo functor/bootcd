@@ -72,6 +72,8 @@ else
     echo "pl_sysinit: unable to create device mapper control node, continuing"
 fi
 
+echo "pl_sysinit: configuring kernel parameters"
+/sbin/sysctl -e -p /etc/sysctl.conf
 
 echo "pl_sysinit: bringing network online"
 /etc/init.d/pl_netinit
