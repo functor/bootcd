@@ -133,6 +133,9 @@ function build_initrd()
     echo "setup basic networking files"
     cp -f $CONF_FILES_DIR/hosts $CD_ROOT/etc/
 
+    echo "copying sysctl.conf (fix tcp window scaling and broken routers)"
+    cp -f $CONF_FILES_DIR/sysctl.conf $CD_ROOT/etc/
+
     echo "setup default network conf file"
     mkdir -p $CD_ROOT/usr/boot
     cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot/
