@@ -167,7 +167,10 @@ function build_initrd()
 
     echo "building pcitable for hardware detection"
     pci_map_file=`find $CD_ROOT/lib/modules/ -name modules.pcimap | head -1`
-    ./scripts/rewrite-pcitable.py $pci_map_file $CD_ROOT/etc/pl_pcitable
+    module_dep_file=`find $CD_ROOT/lib/modules/ -name modules.dep | head -1`
+    pci_table=$CD_ROOT/usr/share/hwdata/pcitable
+    ./scripts/rewrite-pcitable.py $module_dep_file $pci_map_file $pci_table \
+	$CD_ROOT/etc/pl_pcitable
 
     dd if=/dev/zero of=$INITRD bs=1M count=$RAMDISK_SIZE
     mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
