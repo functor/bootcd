@@ -115,11 +115,18 @@ function build_initrd()
 
     echo "installing our own inittab and init scripts"
     cp -f $CONF_FILES_DIR/inittab $CD_ROOT/etc
-    cp -f $CONF_FILES_DIR/pl_sysinit $CD_ROOT/etc/init.d/
-    cp -f $CONF_FILES_DIR/pl_hwinit $CD_ROOT/etc/init.d/
+    init_scripts="pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot"
+    for script in $init_scripts; do
+	cp -f $CONF_FILES_DIR/$script $CD_ROOT/etc/init.d/
+	chmod +x $CD_ROOT/etc/init.d/$script
+    done
 
     echo "setup basic networking files"
     cp -f $CONF_FILES_DIR/hosts $CD_ROOT/etc/
+
+    echo "setup default network conf file"
+    mkdir -p $CD_ROOT/usr/boot
+    cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot
 
     echo "copying isolinux configuration files"
     cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
@@ -180,7 +187,6 @@ if [ "$1" == "clean" ]; then
 fi
 
 if [ "$1" == "burn" ]; then
-    build_iso
     burn
     exit
 fi
