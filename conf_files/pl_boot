@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "contact boot server here"
+/bin/sleep 1000
+
