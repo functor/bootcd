@@ -144,6 +144,12 @@ function build_initrd()
     echo "$BOOTSERVER_PORT" > $CD_ROOT/usr/boot/boot_server_port
     echo "$BOOTSERVER_PATH" > $CD_ROOT/usr/boot/boot_server_path
 
+    echo "copying old boot cd directory bootme (TEMPORARY)"
+    cp -r bootme_old $CD_ROOT/usr/bootme
+
+    echo "forcing lvm to make lvm1 partitions (TEMPORARY)"
+    cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
+
     echo "copying isolinux configuration files"
     cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
     echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/message.txt
