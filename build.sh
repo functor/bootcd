@@ -132,6 +132,10 @@ function build_initrd()
     cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
     echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/message.txt
 
+    echo "writing /etc/issue"
+    echo "$FULL_VERSION_STRING" > $CD_ROOT/etc/issue
+    echo "Kernel \r on an \m\n" >> $CD_ROOT/etc/issue
+
     echo "making the isolinux initrd kernel command line match rd size"
     let INITRD_SIZE_KB=$(($RAMDISK_SIZE * 1024))
     sed -i "s#ramdisk_size=0#ramdisk_size=$INITRD_SIZE_KB#g" \
