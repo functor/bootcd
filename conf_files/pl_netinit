@@ -2,37 +2,57 @@
 
 # the name of the floppy based network configuration
 # files (checked first). the name planet.cnf is kept
-# for backward compatibility with old nodes
-FLOPPY_NET_CONF=planet.cnf
+# for backward compatibility with old nodes, and only
+# the floppy disk is searched for files with this name.
+# new files are named plnode.txt and can be located on
+# a floppy or usb device or on the cdrom
+OLD_NODE_CONF_NAME=planet.cnf
+NEW_NODE_CONF_NAME=plnode.txt
 
-# location of cd-based network configuration file
-# (checked if floppy conf file missing)
-USER_NET_CONF=/usr/boot/user-net.cnf
+# one location of cd-based network configuration file
+# (checked if floppy conf file missing and usb
+# configuration file is missing)
+CD_NET_CONF_BOOT=/usr/boot/$NEW_NODE_CONF_NAME
+
+# the other location of cd-based network configuration file
+CD_NET_CONF_ROOT=/usr/$NEW_NODE_CONF_NAME
 
 # if all other network configuration file sources 
 # don't exist, fall back to this one (always on the cd)
 FALLBACK_NET_CONF=/usr/boot/default-net.cnf
 
+# a temporary place to hold the old configuration file
+# off of the floppy disk if we find it (so we don't have
+# to remount the floppy later)
+TMP_OLD_FLOPPY_CONF_FILE=/tmp/oldfloppy_planet.cnf
+
 # once a configuration file is found, save it in /tmp
 # (may be used later by boot scripts)
 USED_NET_CONF=/tmp/planet.cnf
 
-# default device to use for contacting PLC
+# default device to use for contacting PLC if not specified
+# in the configuration file
 DEFAULT_NET_DEV=eth0
 
 # where to store the temporary dhclient conf file
 DHCLIENT_CONF_FILE=/tmp/dhclient.conf
 
-# which fs types we support floppy disks in
-FLOPPY_FS_TYPES="msdos,ext2"
+# which fs types we support finding node configuration files on
+# (will be based as a -t parameter to mount)
+NODE_CONF_DEVICE_FS_TYPES="msdos,ext2"
 
-FLOPPY_MOUNT_POINT=/mnt/floppy
-/bin/mkdir -p $FLOPPY_MOUNT_POINT
+# a temporary place to mount devices that might contain configuration
+# files on
+CONF_DEVICE_MOUNT_POINT=/mnt/confdevice
+/bin/mkdir -p $CONF_DEVICE_MOUNT_POINT
 
 # for some backwards compatibility, save the ifconfig <device>
-# output to this file
+# output to this file after everything is online
 IFCONFIG_OUTPUT=/tmp/ifconfig
 
+# set to 1 if the default network configuration was loaded off the cd
+# (no other configuration file found)
+DEFAULT_NET_CONF=0
 
 net_init_failed()
 {
@@ -57,54 +77,146 @@ check_ip()
     [ ${3:-666} -le 255 ] && [ ${4:-666} -le 255 ]
 }
 
+# find and parse a node network configuration file. return 0 if not found,
+# return 1 if found and parsed. if this is the case, DEFAULT_NET_CONF will 
+# be set to 1. For any found configuration file, $USED_NET_CONF will
+# contain the validated contents
+find_node_config()
+{
+    /bin/rm -f $TMP_OLD_FLOPPY_CONF_FILE 2>&1 > /dev/null
+
+    echo "pl_netinit: looking for node configuration file on floppy"
+    
+    /bin/mount -o ro -t $NODE_CONF_DEVICE_FS_TYPES /dev/fd0 \
+	$CONF_DEVICE_MOUNT_POINT 2>&1 > /dev/null
+    if [[ $? -eq 0 ]]; then
+
+        # 1. check for new named file first on the floppy disk
+	if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
+	    echo "pl_netinit: found node configuration file plnode.txt, using"
+
+	    conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+	    /etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+	    /bin/umount $CONF_DEVICE_MOUNT_POINT
+	    return 1
+
+        # since we have the floppy mounted already, see if an old file
+        # exists there so we don't have to remount the floppy when we need
+        # to check for an old file on it (later in the order). if it does
+        # just copy it off to a special location
+	elif [ -r "$CONF_DEVICE_MOUNT_POINT/$OLD_NODE_CONF_NAME" ]; then
+	    conf_file="$CONF_DEVICE_MOUNT_POINT/$OLD_NODE_CONF_NAME"
+	    /bin/cp -f $conf_file $TMP_OLD_FLOPPY_CONF_FILE
+	    echo "pl_netinit: found old named configuration file, checking later."
+	else
+	    echo "pl_netinit: floppy mounted, but no configuration file."
+	fi
+
+	/bin/umount $CONF_DEVICE_MOUNT_POINT
+    else
+	echo "pl_netinit: no floppy could be mounted, continuing search."
+    fi
+
+    # 2. check for a new named file on removable flash devices (those 
+    # that start with sd*, because usb_storage emulates scsi devices).
+    # to prevent checking normal scsi disks, also make sure
+    # /sys/block/<dev>/removable is set to 1
+
+    echo "pl_netinit: looking for node configuration file on flash based devices"
+
+    echo "pl_netinit: waiting for flash devices if any to come online"
+    # some usb flash based devices take a couple of seconds to initialize
+    # also, try to read the partition table off the device to make sure
+    # it shows up in /sys/block
+    /bin/sleep 10s
+
+    # make the sd* expansion fail to an empty string if there are no sd
+    # devices
+    shopt -s nullglob
+
+    for device in /sys/block/sd*; do
+	removable=`cat $device/removable`
+	if [[ $removable -ne 1 ]]; then
+	    continue
+	fi
+
+	check_dev=/dev/`basename $device`1
+
+	echo "pl_netinit: looking for node configuration file on device $check_dev"
+	/bin/mount -o ro -t $NODE_CONF_DEVICE_FS_TYPES $check_dev \
+	    $CONF_DEVICE_MOUNT_POINT 2>&1 > /dev/null
+	if [[ $? -eq 0 ]]; then
+	    if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
+		echo "pl_netinit: found node configuration file plnode.txt, using"
+
+		conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+		/etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+		echo "pl_netinit: found configuration"
+		/bin/umount $CONF_DEVICE_MOUNT_POINT
+		return 1
+	    fi
+	    
+	    echo "pl_netinit: not found"
+
+	    /bin/umount $CONF_DEVICE_MOUNT_POINT
+	fi
+    done
+
+    # normal filename expansion setting
+    shopt -u nullglob
+
+    # 3. see if there is an old file on the floppy disk. if there was,
+    # the file $TMP_OLD_FLOPPY_CONF_FILE will be readable.
+    if [ -r "$TMP_OLD_FLOPPY_CONF_FILE" ]; then
+	echo "pl_netinit: found node configuration file planet.cnf, using"
+
+	conf_file=$TMP_OLD_FLOPPY_CONF_FILE
+	/etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+	return 1
+    fi
+
+
+    # 4. check for plnode.txt on the cd at /usr/boot
+    echo "pl_netinit: looking for network configuration on cd in /usr/boot"
+    if [ -r "$CD_NET_CONF_BOOT" ]; then
+	
+	echo "pl_netinit: found cd configuration file, using"
+	/etc/init.d/pl_validateconf < $CD_NET_CONF_BOOT > $USED_NET_CONF
+	return 1
+    fi
+    
+
+    # 5. check for plnode.txt on the cd at /usr
+    echo "pl_netinit: looking for network configuration on cd in /usr"
+    if [ -r "$CD_NET_CONF_ROOT" ]; then
+	
+	echo "pl_netinit: found cd configuration file, using"
+	/etc/init.d/pl_validateconf < $CD_NET_CONF_ROOT > $USED_NET_CONF
+	return 1
+    fi
+
+
+    # 6. no node configuration file could be found, fall back to
+    # builtin default. this can't be used to install a machine, but
+    # will at least let it download and run the boot manager, which
+    # can inform the users appropriately.
+    echo "pl_netinit: using default network configuration"
+    if [ -r "$FALLBACK_NET_CONF" ]; then
+	echo "pl_netinit: found cd default configuration file, using"
+	/etc/init.d/pl_validateconf < $FALLBACK_NET_CONF > $USED_NET_CONF
+	DEFAULT_NET_CONF=1
+	return 1
+    fi
+
+    return 0
+}
+
+
 echo "pl_netinit: bringing loopback network device up"
 /sbin/ifconfig lo 127.0.0.1 up
 
-
-DEFAULT_NET_CONF=0
-FOUND_NET_CONF=0
-
-echo "pl_netinit: looking for network configuration on floppy"
-/bin/mount -o ro -t $FLOPPY_FS_TYPES /dev/fd0 $FLOPPY_MOUNT_POINT 2>&1 > /dev/null
-if [[ $? -eq 0 ]]; then
-    floppy_conf_file="$FLOPPY_MOUNT_POINT/$FLOPPY_NET_CONF"
-    if [ -r "$floppy_conf_file" ]; then
-
-	echo "pl_netinit: found floppy configuration file, using"
-	/etc/init.d/pl_validateconf < $floppy_conf_file > $USED_NET_CONF
-	FOUND_NET_CONF=1
-    else
-	echo "pl_netinit: floppy mounted, but no configuration file."
-    fi
-    /bin/umount $FLOPPY_MOUNT_POINT
-else
-    echo "pl_netinit: no floppy found"
-fi
-
-
-if [[ $FOUND_NET_CONF -eq 0 ]]; then
-    echo "pl_netinit: looking for network configuration on cd"
-    if [ -r "$USER_NET_CONF" ]; then
-
-	echo "pl_netinit: found cd configuration file, using"
-	/etc/init.d/pl_validateconf < $USER_NET_CONF > $USED_NET_CONF
-	FOUND_NET_CONF=1
-    fi
-fi
-
-if [[ $FOUND_NET_CONF -eq 0 ]]; then
-    echo "pl_netinit: using default network configuration"
-    if [ -r "$FALLBACK_NET_CONF" ]; then
-
-	echo "pl_netinit: found cd default configuration file, using"
-	/etc/init.d/pl_validateconf < $FALLBACK_NET_CONF > $USED_NET_CONF
-	FOUND_NET_CONF=1
-	DEFAULT_NET_CONF=1
-    fi
-fi
-
-
-if [[ $FOUND_NET_CONF -eq 0 ]]; then
+find_node_config
+if [ $? -eq 0 ]; then
     # no network configuration file found. this should not happen as the
     # default cd image has a backup one. halt.
     echo "pl_netinit: unable to find even a default network configuration"

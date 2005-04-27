@@ -45,5 +45,9 @@ done
 echo "pl_hwinit: loading sd_mod"
 /sbin/modprobe sd_mod
 
+# load usb_storage to support node conf files on flash disks
+echo "pl_hwinit: loading usb_storage"
+/sbin/modprobe usb_storage
+
 echo "pl_hwinit: loading floppy device driver"
 /sbin/modprobe floppy
