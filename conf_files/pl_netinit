@@ -242,16 +242,16 @@ fi
 # either a mac address (in which case we will need to find the device), or
 # the device itself
 
-if [[ -n "$PRIMARY_MAC" ]]; then
+if [[ -n "$NET_DEVICE" ]]; then
     # the user specified a mac address we should use. find the network
     # device for it.
-    echo "pl_netinit: looking for a device with mac address $PRIMARY_MAC"
+    echo "pl_netinit: looking for a device with mac address $NET_DEVICE"
 
     pushd .
     cd /sys/class/net
     for device in *; do
 	dev_address=`cat $device/address`
-	if [[ "$dev_address" == "$PRIMARY_MAC" ]]; then
+	if [[ "$dev_address" == "$NET_DEVICE" ]]; then
 	    ETH_DEVICE=$device
 	    echo "pl_netinit: found device $ETH_DEVICE"
 	    break
@@ -271,13 +271,13 @@ else
 fi
 
 
-# if we couldn't find a device (would happen if PRIMARY_MAC was specified
+# if we couldn't find a device (would happen if NET_DEVICE was specified
 # but we couldn't find a device for that addresS), then abort the rest
 # of the startup
 
 if [[ -z "$ETH_DEVICE" ]]; then
     echo "pl_netinit: unable to find a usable device, check to make sure"
-    echo "pl_netinit: the PRIMARY_MAC field in the configuration file"
+    echo "pl_netinit: the NET_DEVICE field in the configuration file"
     echo "pl_netinit: cooresponds with a network adapter on this system"
     net_init_failed
 fi
