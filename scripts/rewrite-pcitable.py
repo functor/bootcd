@@ -105,7 +105,7 @@ all_modules= {}
 
 
 # first step, create an associative array of all the built modules
-for line in modulesdep_file_name:
+for line in modulesdep_file:
     parts= string.split(line,":")
     if len(parts) < 2:
         continue
@@ -115,7 +115,7 @@ for line in modulesdep_file_name:
     module_name= parts[len(parts)-1]
     module_name_len= len(module_name)
     if module_name[module_name_len-3:] == ".ko":
-        all_modules[module_name[:3]]= []
+        all_modules[module_name[:-3]]= []
 
 
 # now, parse the pcimap and add devices
