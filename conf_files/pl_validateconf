@@ -19,4 +19,4 @@ do
         REGEX="$REGEX|^$t"
     fi
 done
-/bin/egrep "($REGEX)\=\\\"[$CHARS]*\\\"\s*$"
+/usr/bin/dos2unix | /bin/egrep "($REGEX)\=\\\"[$CHARS]*\\\"\s*$"
