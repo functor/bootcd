@@ -48,6 +48,8 @@
       <packagereq type="mandatory">openssh-server</packagereq>
       <packagereq type="mandatory">openssh-clients</packagereq>
       <packagereq type="mandatory">ncftp</packagereq>
+      <packagereq type="mandatory">dosfstools</packagereq>
+      <packagereq type="mandatory">dos2unix</packagereq>
     </packagelist>
   </group>
 
