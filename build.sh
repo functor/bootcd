@@ -163,6 +163,7 @@ function build_initrd()
 
     echo "copying old boot cd directory bootme (TEMPORARY)"
     cp -r bootme_old $CD_ROOT/usr/bootme
+    echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/bootme/ID
 
     echo "forcing lvm to make lvm1 partitions (TEMPORARY)"
     cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
