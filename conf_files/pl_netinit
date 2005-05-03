@@ -310,7 +310,7 @@ if [[ "$IP_METHOD" == "dhcp" ]]; then
 	/sbin/dhclient -1 -cf $DHCLIENT_CONF_FILE $ETH_DEVICE 
 	if [[ $? -ne 0 ]]; then
 	    echo "pl_netinit: dhcp failed, retrying in 2 minutes"
-	    /sbin/sleep 120
+	    /bin/sleep 120
 	else
 	    echo "pl_netinit: dhcp succeeded"
 	    configured=1
