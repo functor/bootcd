@@ -2,24 +2,16 @@
 
 set -e
 
+# where the boot cd build config files are stored (and certificats/keys)
+CONFIGURATIONS_DIR=configurations/
+
+# where built files are stored
+BUILD_DIR=build/
+
 BOOTCD_VERSION="3.0-beta0.4"
 FULL_VERSION_STRING="PlanetLab BootCD $BOOTCD_VERSION"
 
-# which boot server to contact
-BOOTSERVER='boot.planet-lab.org'
-
-# and on which port (protocol will be https)
-BOOTSERVER_PORT='443'
-
-# finally, what path to request from the server
-BOOTSERVER_PATH='boot/'
-
 SYSLINUX_SRC=sources/syslinux-2.11.tar.bz2
-
-ISO=cd.iso
-
-CD_ROOT=`pwd`/cdroot
-ROOT_PASSWD='$1$IdEn2srw$/TfrjZSPUC1xP244YCuIi0'
 
 BOOTCD_YUM_GROUP=BootCD
 
@@ -27,17 +19,21 @@ CDRECORD_FLAGS="-v -dao"
 
 CONF_FILES_DIR=conf_files/
 
-# location of the uncompressed ramdisk image
-INITRD=$CD_ROOT/usr/isolinux/initrd
-
-# temporary mount point for rd
-INITRD_MOUNT=`pwd`/rd
-
 # size of the ram disk in MB
 RAMDISK_SIZE=64
 
 # the bytes per inode ratio (the -i value in mkfs.ext2) for the ramdisk
 INITRD_BYTES_PER_INODE=1024
+
+
+function usage()
+{
+    echo "Usage: build.sh <action> [<configuration>]"
+    echo "Action: build burn clean"
+    echo
+    echo "If configuration is missing, 'default' is loaded"
+    exit
+}
 
 
 function build_cdroot()
@@ -92,7 +88,7 @@ function build_cdroot()
 	--enablemd5 --enableshadow
 
     echo "setting root password"
-    sed -i "s#root::#root:$ROOT_PASSWD:#g" $CD_ROOT/etc/shadow
+    sed -i "s#root::#root:$ROOT_PASSWORD:#g" $CD_ROOT/etc/shadow
 
     echo "relocate some large directories out of the root system"
     # get /var/lib/rpm out, its 12mb. create in its place a 
@@ -107,10 +103,11 @@ function build_cdroot()
     (cd $CD_ROOT/lib && ln -s ../usr/relocated/lib/tls tls)
 
     echo "extracting syslinux, copying isolinux files to cd"
-    mkdir -p syslinux
     mkdir -p $CD_ROOT/usr/isolinux/
-    tar -C syslinux -xjvf $SYSLINUX_SRC
-    find syslinux -name isolinux.bin -exec cp -f {} $CD_ROOT/usr/isolinux/ \;
+    mkdir -p $BUILD_DIR/syslinux
+    tar -C $BUILD_DIR/syslinux -xjvf $SYSLINUX_SRC
+    find $BUILD_DIR/syslinux -name isolinux.bin \
+	-exec cp -f {} $CD_ROOT/usr/isolinux/ \;
 
     echo "moving kernel to isolinux directory"
     KERNEL=$CD_ROOT/boot/vmlinuz-*
@@ -155,15 +152,28 @@ function build_initrd()
     cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot/
 
     echo "setup boot server configuration"
-    cp -f $CONF_FILES_DIR/cacert.pem $CD_ROOT/usr/boot/
-    cp -f $CONF_FILES_DIR/pubring.gpg $CD_ROOT/usr/boot/
-    echo "$BOOTSERVER" > $CD_ROOT/usr/boot/boot_server
-    echo "$BOOTSERVER_PORT" > $CD_ROOT/usr/boot/boot_server_port
-    echo "$BOOTSERVER_PATH" > $CD_ROOT/usr/boot/boot_server_path
+    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_CERT $CD_ROOT/usr/boot/cacert.pem
+    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_GPG $CD_ROOT/usr/boot/pubring.gpg
+    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/boot/boot_server
+    echo "$PRIMARY_SERVER_PORT" > $CD_ROOT/usr/boot/boot_server_port
+    echo "$PRIMARY_SERVER_PATH" > $CD_ROOT/usr/boot/boot_server_path
+
+    echo "setup backup boot server configuration"
+    mkdir -p $CD_ROOT/usr/boot/backup
+    cp -f $CURRENT_CONFIG_DIR/$BACKUP_SERVER_CERT \
+	$CD_ROOT/usr/boot/backup/cacert.pem
+    cp -f $CURRENT_CONFIG_DIR/$BACKUP_SERVER_GPG \
+	$CD_ROOT/usr/boot/backup/pubring.gpg
+    echo "$BACKUP_SERVER" > $CD_ROOT/usr/boot/backup/boot_server
+    echo "$BACKUP_SERVER_PORT" > $CD_ROOT/usr/boot/backup/boot_server_port
+    echo "$BACKUP_SERVER_PATH" > $CD_ROOT/usr/boot/backup/boot_server_path
 
     echo "copying old boot cd directory bootme (TEMPORARY)"
     cp -r bootme_old $CD_ROOT/usr/bootme
     echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/bootme/ID
+    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/bootme/BOOTSERVER
+    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/bootme/BOOTSERVER_IP
+    echo "$PRIMARY_SERVER_PORT" > $CD_ROOT/usr/bootme/BOOTPORT
 
     echo "forcing lvm to make lvm1 partitions (TEMPORARY)"
     cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
@@ -177,6 +187,12 @@ function build_initrd()
     echo "Kernel \r on an \m" >> $CD_ROOT/etc/issue
     echo "" >> $CD_ROOT/etc/issue
     echo "" >> $CD_ROOT/etc/issue
+
+    if [[ ! -z "$NODE_CONFIGURATION_FILE" ]]; then
+	echo "Copying node configuration file to cd"
+	cp -f $CURRENT_CONFIG_DIR/$NODE_CONFIGURATION_FILE \
+	    $CD_ROOT/usr/boot/plnode.txt
+    fi
 
     echo "making the isolinux initrd kernel command line match rd size"
     let INITRD_SIZE_KB=$(($RAMDISK_SIZE * 1024))
@@ -208,13 +224,18 @@ function build_initrd()
     gzip $INITRD
 }
 
-function build_iso()
+function build()
 {
-    echo "building iso"
+    # build base image via yum
+    build_cdroot
+
+    # always build/rebuild initrd
+    build_initrd
+
     rm -f $ISO
     mkisofs -o $ISO -R -allow-leading-dots -J -r -b isolinux/isolinux.bin \
 	-c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-	-V PlanetLab-3-0 $CD_ROOT/usr
+	$CD_ROOT/usr
 }
 
 function burn()
@@ -224,32 +245,61 @@ function burn()
 
 function clean()
 {
-    echo "removing built files"
-    rm -rf cdroot
-    rm -rf syslinux
-    rm -rf $INITRD_MOUNT
+    rm -rf $CD_ROOT
+    rm -rf $BUILD_DIR/syslinux
+    rm -rf $BUILD_DIR/$INITRD_MOUNT
+    rm -rf $BUILD_DIR
     rm -f $ISO
+    rmdir --ignore-fail-on-non-empty build
 }
 
+if [[ "$1" == "clean" || "$1" == "burn" || "$1" == "build" ]]; then
+    action=$1
+    configuration=$2
 
-if [ "$1" == "clean" ]; then
-    clean
-    exit
+    if [[ -z "$configuration" ]]; then
+	configuration=default
+    fi
+
+    echo "Loading configuration $configuration"
+    CURRENT_CONFIG_DIR=$CONFIGURATIONS_DIR/$configuration
+    . $CURRENT_CONFIG_DIR/configuration
+
+    # setup vars for this configuration
+    if [[ ! -z "$EXTRA_VERSION" ]]; then
+	FULL_VERSION_STRING="$FULL_VERSION_STRING-$EXTRA_VERSION"
+    fi
+
+    # destination image
+    BUILD_DIR=build/$configuration
+    mkdir -p $BUILD_DIR
+    ISO=$BUILD_DIR/`echo $OUTPUT_IMAGE_NAME | sed -e "s/%version/$BOOTCD_VERSION/"`.iso
+
+    # built cd root
+    CD_ROOT=`pwd`/$BUILD_DIR/cdroot
+    mkdir -p $CD_ROOT
+
+    # location of the uncompressed ramdisk image
+    INITRD=$CD_ROOT/usr/isolinux/initrd
+
+    # temporary mount point for rd
+    INITRD_MOUNT=`pwd`/$BUILD_DIR/rd
+
+
+    case $action in 
+	build )
+	    echo "Proceeding with building $DESCRIPTION"
+	    build;;
+
+	clean )
+	    echo "Removing built files for $DESCRIPTION"
+	    clean;;
+
+	burn )
+	    echo "Burning $DESCRIPTION"
+	    burn;;
+    esac    
+else
+    usage
 fi
 
-if [ "$1" == "burn" ]; then
-    burn
-    exit
-fi
-
-if [ "$1" == "force" ]; then
-    clean
-fi
-
-# build base image via yum
-build_cdroot
-
-# always build/rebuild initrd
-build_initrd
-
-build_iso

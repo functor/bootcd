@@ -1,0 +1,34 @@
+#
+# configuration for standard bootcd, contact primary boot server,
+# no backup server.
+#
+
+# the name of the cd image. %version is replaced with the current
+# cd version (from build.sh)
+OUTPUT_IMAGE_NAME='PlanetLab-BootCD-%version'
+
+# extra version, if set, is added to end of version.
+EXTRA_VERSION=
+
+# a one line description of this cd
+DESCRIPTION='PLC PlanetLab BootCD'
+
+# the password for the root account on the cd
+ROOT_PASSWORD='$1$IdEn2srw$/TfrjZSPUC1xP244YCuIi0'
+
+# which server to contact
+PRIMARY_SERVER=boot.planet-lab.org
+PRIMARY_SERVER_PORT=443
+PRIMARY_SERVER_PATH=/boot/
+PRIMARY_SERVER_CERT=plc-boot-cacert.pem
+PRIMARY_SERVER_GPG=plc-pubring.gpg
+
+# and the backup server
+BACKUP_SERVER=boot1.planet-lab.org
+BACKUP_SERVER_PORT=443
+BACKUP_SERVER_PATH=/boot/
+BACKUP_SERVER_CERT=plc-boot1-cacert.pem
+BACKUP_SERVER_GPG=plc-pubring.gpg
+
+# this is a generic cd, so no configuration file for a node
+NODE_CONFIGURATION_FILE=
