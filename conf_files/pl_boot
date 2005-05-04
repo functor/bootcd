@@ -11,7 +11,7 @@ CANCEL_BOOT_FLAG=/tmp/CANCEL_BOOT
 # how many times to fail in attempting to contact primary server
 # before falling back to original. if the backup fails this many times
 # too, then the process is repeated started with the primary server
-ATTEMPTS_BEFORE_BACKUP=2
+ATTEMPTS_BEFORE_BACKUP=3
 
 # where all the configuration files for contacting
 # the boot server are stored
@@ -73,14 +73,8 @@ while : ; do
 	echo "pl_boot: got request to cancel boot, exiting"
 	exit 0
     fi
-
-    if [[ $contact_count -ne 0 ]]; then
-	echo "pl_boot: fetching new script in 30 seconds"
-	/bin/sleep 30
-    fi
     
-    ((contact_count++))
-    if [[ $contact_count > $ATTEMPTS_BEFORE_BACKUP ]]; then
+    if [[ $contact_count -ge $ATTEMPTS_BEFORE_BACKUP ]]; then
 
 	contact_count=0
 
@@ -105,6 +99,16 @@ while : ; do
 	    CONNECT_BOOT_SERVER_GPG_KEYRING=$BACKUP_BOOT_SERVER_GPG_KEYRING
 	    CONNECT_BOOT_SERVER_CACERT=$BACKUP_BOOT_SERVER_CACERT
 	fi
+    fi
+
+    if [[ $contact_count != 0 ]]; then
+
+	if [[ $on_backup_server == 1 ]]; then
+	    echo "pl_boot: attempting to fetch script from backup server in 30s"
+	else
+	    echo "pl_boot: attempting to fetch script from primary server in 30s"
+	fi
+	/bin/sleep 30
     fi
 
     # assemble the curl transaction
@@ -140,6 +144,7 @@ while : ; do
 	/bin/sed 's/ //g' > /tmp/nonce
 
     echo "pl_boot: fetching script from boot server $CONNECT_BOOT_SERVER"
+    ((contact_count++))
     rm -f $UNVERIFIED_SCRIPT
     $CURL_CMD
     curl_err=$?
