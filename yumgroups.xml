@@ -50,6 +50,7 @@
       <packagereq type="mandatory">ncftp</packagereq>
       <packagereq type="mandatory">dosfstools</packagereq>
       <packagereq type="mandatory">dos2unix</packagereq>
+      <packagereq type="mandatory">bind-utils</packagereq>
     </packagelist>
   </group>
 
