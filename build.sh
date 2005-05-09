@@ -176,6 +176,11 @@ function build_initrd()
     echo "$PRIMARY_SERVER" > $CD_ROOT/usr/bootme/BOOTSERVER_IP
     echo "$PRIMARY_SERVER_PORT" > $CD_ROOT/usr/bootme/BOOTPORT
 
+    echo "copying cacert to old boot cd directory bootme (TEMPORARY)"
+    mkdir -p $CD_ROOT/usr/bootme/cacert/$PRIMARY_SERVER/
+    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_CERT \
+	$CD_ROOT/usr/bootme/cacert/$PRIMARY_SERVER/cacert.pem
+
     echo "forcing lvm to make lvm1 partitions (TEMPORARY)"
     cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
 
