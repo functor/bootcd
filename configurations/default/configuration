@@ -3,10 +3,6 @@
 # no backup server.
 #
 
-# the name of the cd image. %version is replaced with the current
-# cd version (from build.sh)
-OUTPUT_IMAGE_NAME='PlanetLab-BootCD-%version'
-
 # extra version, if set, is added to end of version.
 EXTRA_VERSION=
 

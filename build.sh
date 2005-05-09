@@ -9,8 +9,9 @@ CONFIGURATIONS_DIR=configurations/
 BUILD_DIR=build/
 
 BOOTCD_VERSION="3.0-beta0.4"
-FULL_VERSION_STRING="PlanetLab BootCD $BOOTCD_VERSION"
-
+FULL_VERSION_STRING="PlanetLab BootCD"
+OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
+    
 SYSLINUX_SRC=sources/syslinux-2.11.tar.bz2
 
 BOOTCD_YUM_GROUP=BootCD
@@ -266,16 +267,24 @@ if [[ "$1" == "clean" || "$1" == "burn" || "$1" == "build" ]]; then
     . $CURRENT_CONFIG_DIR/configuration
 
     # setup vars for this configuration
+
+    # version string for this build
     if [[ ! -z "$EXTRA_VERSION" ]]; then
-	FULL_VERSION_STRING="$FULL_VERSION_STRING-$EXTRA_VERSION"
+	FULL_VERSION_STRING="$FULL_VERSION_STRING $EXTRA_VERSION"
     fi
+    FULL_VERSION_STRING="$FULL_VERSION_STRING $BOOTCD_VERSION"
 
     # destination image
+    if [[ ! -z "$EXTRA_VERSION" ]]; then
+	OUTPUT_IMAGE_NAME="$OUTPUT_IMAGE_NAME-$EXTRA_VERSION"
+    fi
+    OUTPUT_IMAGE_NAME="$OUTPUT_IMAGE_NAME-$BOOTCD_VERSION"
+
+    # setup build directories
     BUILD_DIR=build/$configuration
     mkdir -p $BUILD_DIR
     ISO=$BUILD_DIR/`echo $OUTPUT_IMAGE_NAME | sed -e "s/%version/$BOOTCD_VERSION/"`.iso
 
-    # built cd root
     CD_ROOT=`pwd`/$BUILD_DIR/cdroot
     mkdir -p $CD_ROOT
 
