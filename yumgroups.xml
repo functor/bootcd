@@ -51,6 +51,7 @@
       <packagereq type="mandatory">dosfstools</packagereq>
       <packagereq type="mandatory">dos2unix</packagereq>
       <packagereq type="mandatory">bind-utils</packagereq>
+      <packagereq type="mandatory">sharutils</packagereq>
     </packagelist>
   </group>
 
