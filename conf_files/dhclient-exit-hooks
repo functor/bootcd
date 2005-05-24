@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [ x$new_planetlab_nfs_cluster_server != x ] ; then
+	echo "$new_planetlab_nfs_cluster_server" > /etc/planetlab/nfs_server
+fi
+
+if [ x$old_ip_address = x ] || [ x$old_ip_address != x$new_ip_address ] || \
+     [ x$reason = xBOUND ] || [ x$reason = xREBOOT ] || [ x$reason = xTIMEOUT ] ; then
+    read i0 i1 i2 i3 < \
+        <(IFS=. ; echo $new_ip_address)
+    read m0 m1 m2 m3 < \
+        <(IFS=. ; echo $new_subnet_arg)
+    #realmask="$(($i0 & $m0)).$(($i1 & $m1)).$(($i2 & $m2)).$(($i3 & $m3))"
+    realmask="0"
+    
+    for router in $new_routers; do
+      read i0 i1 i2 i3 < \
+        <(IFS=. ; echo $router)
+      #routermask="$(($i0 & $m0)).$(($i1 & $m1)).$(($i2 & $m2)).$(($i3 & $m3))"
+      routermask="1"
+      if [ "$realmask" != "$routermask" ] ; then
+        route add -host $router gw $new_ip_address $interface
+      fi
+      route add default gw $router
+    done
+fi

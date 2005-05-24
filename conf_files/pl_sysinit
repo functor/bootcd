@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "pl_sysinit: bringing system online"
 
@@ -44,6 +44,51 @@ for device in $test_devices; do
     fi
 done
 
+echo "pl_sysinit: configuring kernel parameters"
+/sbin/sysctl -e -p /etc/sysctl.conf
+
+echo "pl_sysinit: bringing network online"
+/etc/init.d/pl_netinit
+
+# check for nfs mount
+if [ $mounted -eq 0 -a -f "/etc/planetlab/nfs_server" ]; then
+	echo "pl_sysinit: starting portmap"
+	/sbin/portmap
+	sleep 3
+	nfs_server=$(cat /etc/planetlab/nfs_server)
+	/bin/mount -t nfs -o nfsvers=2 ${nfs_server}:/planetlab/bootcd /usr
+    	if [ $? -ne 0 ]; then
+		bash
+	else
+		# it mounted, but we should probably make sure its our boot cd
+		# this can be done by making sure the /pl_version file (on initrd)
+		# matches /usr/isolinux/pl_version
+		cd_version=$(/bin/cat /usr/isolinux/pl_version)
+
+		if [ "$initrd_version" != "$cd_version" ]; then
+	    		# eh, wrong cd, keep trying
+			echo "pl_sysinit: wrong version $initrd_version != $cd_version"
+	    		/bin/umount /usr 2>&1 /dev/null
+		else
+	    		echo "pl_sysinit: found cd on nfs server and mounted on /usr"
+	    		mounted=1
+		fi
+		if [ $mounted -eq 1 ] ; then
+			read i0 i1 i2 i3 m0 m1 m2 m3 < \
+	    			<(IFS=. ; echo $(ifconfig eth0 | sed -ne "s/.*inet addr:\([^ ]*\).*Mask:\([^ ]*\).*/\1.\2/p"))
+			realaddr="$i0.$i1.$i2.$i3"
+			mkdir -p /tmp/conffilemount
+			/bin/mount -t nfs -o nfsvers=2 ${nfs_server}:/planetlab/nodes/${realaddr} /tmp/conffilemount
+			if [ $? -eq 0 ] ; then
+				cp /tmp/conffilemount/plnode.txt /tmp
+			else
+				/bin/umount /usr 2>&1 /dev/null
+				mounted=0
+			fi
+		fi
+	fi
+fi
+
 if [ $mounted -eq 0 ]; then
     echo "pl_sysinit: unable to find boot cdrom, cannot continue."
     # todo: maybe we can put a staticly linked sshd here
@@ -71,10 +116,4 @@ if [ -n "$MAJOR" ] && [ -n "$MINOR" ]; then
 else
     echo "pl_sysinit: unable to create device mapper control node, continuing"
 fi
-
-echo "pl_sysinit: configuring kernel parameters"
-/sbin/sysctl -e -p /etc/sysctl.conf
-
-echo "pl_sysinit: bringing network online"
-/etc/init.d/pl_netinit
 
