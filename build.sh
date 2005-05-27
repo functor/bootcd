@@ -8,7 +8,7 @@ CONFIGURATIONS_DIR=configurations/
 # where built files are stored
 BUILD_DIR=build/
 
-BOOTCD_VERSION="3.0-beta0.4"
+BOOTCD_VERSION="3.0-beta0.5"
 FULL_VERSION_STRING="PlanetLab BootCD"
 OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
     
@@ -25,6 +25,17 @@ RAMDISK_SIZE=64
 
 # the bytes per inode ratio (the -i value in mkfs.ext2) for the ramdisk
 INITRD_BYTES_PER_INODE=1024
+
+
+# make sure the boot manager source is checked out in the same directory
+# as the bootcd_v3 repository
+BOOTMANAGER_DIR=../bootmanager/
+
+if [ ! -d $BOOTMANAGER_DIR ]; then
+    echo "the bootmanager repository needs to be checked out at the same"
+    echo "level as this directory, for the merge_hw_tables.py script"
+    exit
+fi
 
 
 function usage()
@@ -209,8 +220,8 @@ function build_initrd()
     pci_map_file=`find $CD_ROOT/lib/modules/ -name modules.pcimap | head -1`
     module_dep_file=`find $CD_ROOT/lib/modules/ -name modules.dep | head -1`
     pci_table=$CD_ROOT/usr/share/hwdata/pcitable
-    ./scripts/rewrite-pcitable.py $module_dep_file $pci_map_file $pci_table \
-	$CD_ROOT/etc/pl_pcitable
+    $BOOTMANAGER_DIR/source/merge_hw_tables.py \
+	$module_dep_file $pci_map_file $pci_table $CD_ROOT/etc/pl_pcitable
 
     dd if=/dev/zero of=$INITRD bs=1M count=$RAMDISK_SIZE
     mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
