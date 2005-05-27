@@ -54,9 +54,6 @@ IFCONFIG_OUTPUT=/tmp/ifconfig
 # (no other configuration file found)
 DEFAULT_NET_CONF=0
 
-# amount of time to delay before we check flash devices
-FLASH_DEVICE_DELAY=25s
-
 
 net_init_failed()
 {
@@ -127,12 +124,6 @@ find_node_config()
     # /sys/block/<dev>/removable is set to 1
 
     echo "pl_netinit: looking for node configuration file on flash based devices"
-
-    echo "pl_netinit: waiting for flash devices if any to come online"
-    # some usb flash based devices take a couple of seconds to initialize
-    # also, try to read the partition table off the device to make sure
-    # it shows up in /sys/block
-    /bin/sleep $FLASH_DEVICE_DELAY
 
     # make the sd* expansion fail to an empty string if there are no sd
     # devices

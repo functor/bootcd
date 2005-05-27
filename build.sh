@@ -125,6 +125,10 @@ function build_cdroot()
     KERNEL=$CD_ROOT/boot/vmlinuz-*
     mv -f $KERNEL $CD_ROOT/usr/isolinux/kernel
 
+    echo "moving /usr/bin/find and /usr/bin/dirname to /bin"
+    mv $CD_ROOT/usr/bin/find $CD_ROOT/bin/
+    mv $CD_ROOT/usr/bin/dirname $CD_ROOT/bin/
+
     echo "creating version files"
     echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/pl_version
     echo "$FULL_VERSION_STRING" > $CD_ROOT/pl_version
