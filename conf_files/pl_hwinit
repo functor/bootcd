@@ -49,6 +49,15 @@ echo "pl_hwinit: loading sd_mod"
 echo "pl_hwinit: loading usb_storage"
 /sbin/modprobe usb_storage
 
+echo "pl_hwinit: loading floppy device driver"
+/sbin/modprobe floppy
+
+# always wait a bit between loading the usb drivers, and checking /sys/
+# for usb devices (this isn't necessarily for waiting for mass storage files,
+# that is done below)
+echo "pl_hwinit: waiting for usb system to initialize."
+/bin/sleep 10s
+
 # sometimes, flash devices take a while to initialize. in fact, the kernel
 # intentionally waits 5 seconds for a device to 'settle'. some take even longer
 # to show up. if there are any mass storage devices on the system, try to
@@ -103,7 +112,7 @@ if [[ -n "$wait_dev_list" ]]; then
 	total_wait_time=$(($total_wait_time+$PER_CHECK_USB_WAIT_TIME))
 
 	echo "pl_hwinit: waiting $PER_CHECK_USB_WAIT_TIME seconds."
-	sleep $PER_CHECK_USB_WAIT_TIME
+	/bin/sleep $PER_CHECK_USB_WAIT_TIME
 
 	all_devices_online=1
 	for device_dir in $wait_dev_list; do
@@ -131,5 +140,3 @@ if [[ -n "$wait_dev_list" ]]; then
     fi
 fi
 
-echo "pl_hwinit: loading floppy device driver"
-/sbin/modprobe floppy
