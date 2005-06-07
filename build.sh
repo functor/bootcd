@@ -8,7 +8,7 @@ CONFIGURATIONS_DIR=configurations/
 # where built files are stored
 BUILD_DIR=build/
 
-BOOTCD_VERSION="3.0-beta0.5"
+BOOTCD_VERSION="3.0"
 FULL_VERSION_STRING="PlanetLab BootCD"
 OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
     
