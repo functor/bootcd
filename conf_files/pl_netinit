@@ -54,12 +54,13 @@ IFCONFIG_OUTPUT=/tmp/ifconfig
 # (no other configuration file found)
 DEFAULT_NET_CONF=0
 
+
 net_init_failed()
 {
     echo
     echo "pl_netinit: network initialization failed,"
     echo "pl_netinit: shutting down machine in two hours"
-    /bin/sleep 7200
+    /bin/sleep 2h
     /sbin/shutdown -h now
     exit 1
 }
@@ -123,12 +124,6 @@ find_node_config()
     # /sys/block/<dev>/removable is set to 1
 
     echo "pl_netinit: looking for node configuration file on flash based devices"
-
-    echo "pl_netinit: waiting for flash devices if any to come online"
-    # some usb flash based devices take a couple of seconds to initialize
-    # also, try to read the partition table off the device to make sure
-    # it shows up in /sys/block
-    /bin/sleep 10s
 
     # make the sd* expansion fail to an empty string if there are no sd
     # devices
@@ -247,8 +242,7 @@ if [[ -n "$NET_DEVICE" ]]; then
     # device for it.
     echo "pl_netinit: looking for a device with mac address $NET_DEVICE"
 
-    pushd .
-    cd /sys/class/net
+    pushd /sys/class/net
     for device in *; do
 	dev_address=`cat $device/address`
 	if [[ "$dev_address" == "$NET_DEVICE" ]]; then
@@ -258,12 +252,6 @@ if [[ -n "$NET_DEVICE" ]]; then
 	fi
     done
     popd
-
-elif [[ -n "$PRIMARY_DEV" ]]; then
-    # the user specified a virtual ethernet device to use.
-    ETH_DEVICE=$PRIMARY_DEV
-    echo "pl_netinit: using user specified device $ETH_DEVICE"
-
 else
     ETH_DEVICE=$DEFAULT_NET_DEV
     echo "pl_netinit: using default device $ETH_DEVICE"
@@ -286,9 +274,15 @@ fi
 # actually check to make sure ifconfig <device> succeeds
 /sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
 if [[ $? -ne 0 ]]; then
-    echo "pl_netinit: device $ETH_DEVICE does not exist,"
-    echo "pl_netinit: this is due to either the device not existing,"
-    echo "pl_netinit: or its device drivers not being loaded"
+    echo "pl_netinit: device $ETH_DEVICE does not exist, most likely"
+    echo "pl_netinit: this cd does not have hardware support for your"
+    echo "pl_netinit: network adapter. please send the following lines"
+    echo "pl_netinit: to PlanetLab Support: support@planet-lab.org"
+    echo "pl_netinit: for further assistance"
+    echo
+    /sbin/lspci -n | /bin/grep "Class 0200"    
+    echo
+
     net_init_failed
 fi
 

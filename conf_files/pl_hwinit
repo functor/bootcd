@@ -51,3 +51,92 @@ echo "pl_hwinit: loading usb_storage"
 
 echo "pl_hwinit: loading floppy device driver"
 /sbin/modprobe floppy
+
+# always wait a bit between loading the usb drivers, and checking /sys/
+# for usb devices (this isn't necessarily for waiting for mass storage files,
+# that is done below)
+echo "pl_hwinit: waiting for usb system to initialize."
+/bin/sleep 10s
+
+# sometimes, flash devices take a while to initialize. in fact, the kernel
+# intentionally waits 5 seconds for a device to 'settle'. some take even longer
+# to show up. if there are any mass storage devices on the system, try to
+# delay until they come online, up to a max delay of 30s.
+
+# the way this will be done is to look for files in /sys/devices that are named
+# 'bInterfaceClass', these will be a list of the usb devices on the system, and
+# their primary usb device interface class ids. The base directory these files 
+# exist in will be the full path to the /sys/device entry for that device.
+# for each mass storage devices (they have an interface class value of 08),
+# we wait for a new symbolic link named 'driver' to exist in that directory,
+# indicating the kernel loaded a driver for that device.
+
+# usb interface class id for mass storage
+INTERFACE_CLASS_MASS_STORAGE="08"
+
+# how long to wait in seconds before continuing on if devices
+# aren't available
+MAX_USB_WAIT_TIME=30
+
+# low long in seconds to wait between checks
+PER_CHECK_USB_WAIT_TIME=5
+
+
+# find out if the device identified by the /sys dir has a module
+# loaded for it. check for a symlink in the dir named driver.
+function does_device_dir_have_driver()
+{
+    if [[ -h "$1/driver" ]]; then
+	return 1
+    else
+	return 0
+    fi
+}
+
+wait_dev_list=""
+for interface_class_file in `/bin/find /sys/devices -name 'bInterfaceClass'`; do
+    interface_class=`cat $interface_class_file`
+    if [[ "$interface_class" == $INTERFACE_CLASS_MASS_STORAGE ]]; then
+	wait_dev_list="$wait_dev_list "`/bin/dirname $interface_class_file`
+    fi
+done
+
+if [[ -n "$wait_dev_list" ]]; then
+    echo "pl_hwinit: found USB mass storage device(s). Attempting to wait"
+    echo "pl_hwinit: up to $MAX_USB_WAIT_TIME seconds for them to come online."
+
+    total_wait_time=0
+    success=0
+    while [[ $total_wait_time < $MAX_USB_WAIT_TIME ]]; do
+	
+	total_wait_time=$(($total_wait_time+$PER_CHECK_USB_WAIT_TIME))
+
+	echo "pl_hwinit: waiting $PER_CHECK_USB_WAIT_TIME seconds."
+	/bin/sleep $PER_CHECK_USB_WAIT_TIME
+
+	all_devices_online=1
+	for device_dir in $wait_dev_list; do
+	    does_device_dir_have_driver $device_dir
+	    if [[ "$?" -eq 0 ]]; then
+		all_devices_online=0
+	    fi
+	done
+
+	if [[ $all_devices_online -eq 1 ]]; then
+	    success=1
+	    echo "pl_hwinit: looks like the devices are now online."
+	    break;
+	else
+	    echo "pl_hwinit: not all devices online yet, waiting..."
+	fi
+    done
+
+    if [[ $success -eq 1 ]]; then
+	echo "pl_hwinit: Succesfully waited for USB mass storage devices"
+	echo "pl_hwinit: to come online."
+    else
+	echo "pl_hwinit: One or more USB mass storage devices did not"
+	echo "pl_hwinit: initialize in time. Continuing anyway."
+    fi
+fi
+
