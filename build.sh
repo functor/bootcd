@@ -68,6 +68,9 @@ function build_cdroot()
     echo "setup rpm to install only en_US locale and no docs"
     mkdir -p $CD_ROOT/etc/rpm
     cp -f $CONF_FILES_DIR/macros $CD_ROOT/etc/rpm
+    # trick rpm and yum
+    export HOME=$PWD
+    cp -f $CONF_FILES_DIR/macros $PWD/.rpmmacros
 
     echo "initialize rpm db"
     mkdir -p $CD_ROOT/var/lib/rpm
