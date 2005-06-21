@@ -34,17 +34,18 @@ for device in /sys/block/*; do
 	partitions=$(/bin/awk "\$4 ~ /${device}[0-9]*/ { print \$4 }" /proc/partitions)
 	for partition in $partitions ; do
 	    echo "pl_sysinit: checking $partition for iso image"
-	    if /bin/mount -o ro -t msdos,ext2 /dev/$partition /usr 2>&1 > /dev/null ; then
+	    mkdir -p /tmp/$partition
+	    if /bin/mount -o ro -t msdos,ext2 /dev/$partition /tmp/$partition 2>&1 > /dev/null ; then
 		# Look for the first ISO image
-		for iso in /usr/*.iso ; do
+		for iso in /tmp/$partition/*.iso ; do
 		    if /sbin/losetup /dev/loop0 $iso ; then
-			echo "pl_sysinit: using $iso on $partition"
+			echo "pl_sysinit: using $(basename $iso) on $partition"
 			device="loop0"
 			break
 		    fi
 		done
 		if [ "$device" != "loop0" ] ; then
-		    /bin/umount /usr 2>&1 > /dev/null
+		    /bin/umount /tmp/$partition 2>&1 > /dev/null
 		fi
 	    fi
 	done
