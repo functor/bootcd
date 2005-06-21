@@ -264,15 +264,22 @@ function build()
 
     # build usb image and make it bootable with syslinux (instead of isolinux)
     USB_IMAGE=${ISO%*.iso}.usb
-    USB_KB=$(du -kc $ISO $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 }')
+    # leave 1 MB of free space on the filesystem
+    USB_KB=$(du -kc $ISO $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 + 1024 }')
     mkfs.vfat -C $USB_IMAGE $USB_KB
+
     mkdir -p $INITRD_MOUNT
     mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
+
+    # populate the root of the image with the iso, pl_version, and the syslinux files
     cp -a $ISO $INITRD_MOUNT
     cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
     cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
+
     umount $INITRD_MOUNT
     rmdir $INITRD_MOUNT
+
+    # make it bootable
     syslinux $USB_IMAGE
 }
 
