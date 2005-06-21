@@ -253,10 +253,24 @@ function build()
     # always build/rebuild initrd
     build_initrd
 
+    # build iso image
     rm -f $ISO
     mkisofs -o $ISO -R -allow-leading-dots -J -r -b isolinux/isolinux.bin \
 	-c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
 	$CD_ROOT/usr
+
+    # build usb image and make it bootable with syslinux (instead of isolinux)
+    USB_IMAGE=${ISO%*.iso}.usb
+    USB_KB=$(du -kc $ISO $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 }')
+    mkfs.vfat -C $USB_IMAGE $USB_KB
+    mkdir -p $INITRD_MOUNT
+    mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
+    cp -a $ISO $INITRD_MOUNT
+    cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
+    cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
+    umount $INITRD_MOUNT
+    rmdir $INITRD_MOUNT
+    syslinux $USB_IMAGE
 }
 
 function burn()
