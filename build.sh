@@ -112,6 +112,12 @@ function build_cdroot()
     mv $CD_ROOT/var/lib/rpm $CD_ROOT/usr/relocated/var/lib/
     (cd $CD_ROOT/var/lib && ln -s ../../usr/relocated/var/lib/rpm rpm)
 
+    # get /var/cache/yum out, its 100Mb. create in its place a 
+    # symbolic link to /usr/relocated/var/cache/yum
+    mkdir -p $CD_ROOT/usr/relocated/var/cache/
+    mv $CD_ROOT/var/cache/yum $CD_ROOT/usr/relocated/var/cache/
+    (cd $CD_ROOT/var/cache && ln -s ../../usr/relocated/var/cache/yum yum)
+
     # get /lib/tls out
     mkdir -p $CD_ROOT/usr/relocated/lib
     mv $CD_ROOT/lib/tls $CD_ROOT/usr/relocated/lib/
