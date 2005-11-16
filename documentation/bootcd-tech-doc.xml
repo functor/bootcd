@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+"http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>BootCD v3.x Technical Documentation</title>
+
+    <author>
+      <firstname>Aaron</firstname>
+
+      <surname>Klingaman</surname>
+
+      <email>alk@absarokasoft.com</email>
+    </author>
+
+    <affiliation>
+      <orgname>Princeton University</orgname>
+    </affiliation>
+
+    <revhistory>
+      <revision>
+        <revnumber>1.0</revnumber>
+
+        <date>November 16, 2005</date>
+
+        <authorinitials>AK</authorinitials>
+
+        <revdescription>
+          <para>Initial draft.</para>
+        </revdescription>
+      </revision>
+    </revhistory>
+  </articleinfo>
+
+  <section>
+    <title>Overview</title>
+
+    <para>This document describes in detail how the PlanetLab boot CD is built
+    and operates when running on a node. Older boot CDs, including 2.x cds,
+    are not the focus of this document, and are no longer being deployed on
+    production systems.</para>
+  </section>
+
+  <section>
+    <title>Background</title>
+
+    <para>Since the early days of PlanetLab, all production nodes are
+    configured during setup to only start up off of the cdrom, with a
+    PlanetLab boot cd always left in the drive. The intention is to allow a
+    machine to be able to restart into a known environment, for debugging
+    system problems, or as a way to still access the machine but not have any
+    potentially compromised code to run if the system is believed to be
+    compromised.</para>
+  </section>
+
+  <section>
+    <title>Soure Code</title>
+
+    <para>All 3.x boot cd source code is located in the repository 'bootcd_v3'
+    on the PlanetLab CVS system. For information on how to access CVS, consult
+    the PlanetLab website. Unless otherwise noted, all file references refer
+    to this repository.</para>
+  </section>
+
+  <section>
+    <title>Basic Operation</title>
+
+    <para>The operation of the boot cd, when a machine is started off of one,
+    is fairly straight forward. Essentially, it loads a linux kernel,
+    configures the hardware and network, and fetches a signed script to
+    execute. This generic operation allows for the boot cds to be used for any
+    number of operations, whether they are installing machines or debug
+    problems.</para>
+
+    <para>The full operation of a boot cd, from the moment it is booted, is
+    described in the following diagram.</para>
+  </section>
+
+  <section>
+    <title>Hardware Detection</title>
+
+    <para>When a node is being installed, the BootManager must identify which
+    hardware the machine has that is applicable to a running node, and
+    configure the node properly so it can boot properly post-install. The
+    general procedure for doing so is outline in this section. It is
+    implemented in the <filename>source/systeminfo.py</filename> file.</para>
+
+    <para>The process for identifying which kernel module needs to be load
+    is:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>Create a lookup table of all modules, and which PCI ids
+        coorespond to this module.</para>
+      </listitem>
+
+      <listitem>
+        <para>For each PCI device on the system, lookup its module in the
+        first table.</para>
+      </listitem>
+
+      <listitem>
+        <para>If a module is found, put in into one of two categories of
+        modules, either network module or scsi module, based on the PCI device
+        class.</para>
+      </listitem>
+
+      <listitem>
+        <para>For each network module, write out an 'eth&lt;index&gt;' entry
+        in the modprobe.conf configuration file.</para>
+      </listitem>
+
+      <listitem>
+        <para>For each scsi module, write out a
+        'scsi_hostadapter&lt;index&gt;' entry in the modprobe.conf
+        configuration file.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>This process is fairly straight forward, and is simplified by the
+    fact that we currently do not need support for USB, sound, or video
+    devices when the node is fully running. The boot cd itself uses a similar
+    process, but includes USB devices. Consult the boot cd technical
+    documentation for more information.</para>
+
+    <para>The creation of the PCI id to kernel module table lookup uses three
+    different sources of information, and merges them together into a single
+    table for easier lookups. With these three sources of information, a
+    fairly comprehensive lookup table can be generated for the devices that
+    PlanetLab nodes need to have configured. They include:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>The installed <filename>/usr/share/hwdata/pcitable
+        </filename>file</para>
+
+        <para>Created at the time the hwdata rpm was built, this file contains
+        mappings of PCI ids to devices for a large number of devices. It is
+        not necessarily complete, and doesn't take into account the modules
+        that are actually available by the built PlanetLab kernel, which is a
+        subset of the full set available (again, PlanetLab nodes do not have a
+        use for network or video drivers, and thus are not typically
+        built).</para>
+      </listitem>
+
+      <listitem>
+        <para>From the built kernel, the <filename>modules.pcimap</filename>
+        from the <filename>/lib/modules/&lt;kernelversion&gt;/</filename>
+        directory.</para>
+
+        <para>This file is generated at the time the kernel is installed, and
+        pulls the PCI ids out of each module, for the modules list they
+        devices they support. Not all modules list all devices they sort, and
+        some contain wild cards (that match any device of a single
+        manufacturer).</para>
+      </listitem>
+
+      <listitem>
+        <para>From the built kernel, the <filename>modules.dep</filename> from
+        the <filename>/lib/modules/&lt;kernelversion&gt;/</filename>
+        directory.</para>
+
+        <para>This file is also generated at the time the kernel is installed,
+        but lists the dependencies between various modules. It is used to
+        generate a list of modules that are actually available.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>It should be noted here that SATA (Serial ATA) devices have been
+    known to exist with both a PCI SCSI device class, and with a PCI IDE
+    device class. Under linux 2.6 kernels, all SATA modules need to be listed
+    in modprobe.conf under 'scsi_hostadapter' lines. This case is handled in
+    the hardware loading scripts by making the assumption that if an IDE
+    device matches a loadable module, it should be put in the modprobe.conf
+    file, as 'real' IDE drivers are all currently built into the kernel, and
+    do not need to be loaded. SATA devices that have a PCI SCSI device class
+    are easily identified.</para>
+
+    <para>It is enssential that the modprobe.conf configuration file contain
+    the correct drivers for the disks on the system, if they are present, as
+    during kernel installation the creation of the initrd (initial ramdisk)
+    which is responsible for booting the system uses this file to identify
+    which drivers to include in it. A failure to do this typically results in
+    an kernel panic at boot with a 'no init found' message.</para>
+  </section>
+</article>
