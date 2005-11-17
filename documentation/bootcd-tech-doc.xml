@@ -21,7 +21,7 @@
       <revision>
         <revnumber>1.0</revnumber>
 
-        <date>November 16, 2005</date>
+        <date>November 17, 2005</date>
 
         <authorinitials>AK</authorinitials>
 
@@ -74,113 +74,253 @@
 
     <para>The full operation of a boot cd, from the moment it is booted, is
     described in the following diagram.</para>
+
+    <figure>
+      <title>BootCD Operation Flowchart</title>
+
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="bootcd-flowchart.png" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+  </section>
+
+  <section>
+    <title>Security</title>
+
+    <para>Ensuring that the boot cd provided a secure node boot mechanism was
+    a primary concern during its development. The following requirements we
+    used:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>The boot cd should be immutable. At any point, a PlanetLab
+        administator should be able to reboot a machine into a known safe
+        environment to inspect or debug the node.</para>
+      </listitem>
+
+      <listitem>
+        <para>The cd should verify that the servers it contacts for executable
+        scripts should be PlanetLab Central servers, and not someone posing as
+        one.</para>
+      </listitem>
+
+      <listitem>
+        <para>The scripts executed are to be signed by PlanetLab
+        Central.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>Accomplishing 1. is fairly easy: simply require the cds to be burned
+    onto a write once media. Once that is accomplished, it is up to local site
+    administators to ensure physical security of the node so the cd is not
+    switched out. Further work may be done by executed scripts to validate a
+    boot cd, if necessary (though not currently implemented).</para>
+
+    <para>Number two is accomplished through the use of SSL certificates. The
+    PlanetLab Central boot server, running Apache at the time of this writing,
+    uses a self signed SSL certificate. The boot cd, for each server it is to
+    contact (a primary server, and a backup server), contains the CA
+    certificates for those servers. Using the URL downloading tool curl, the
+    scripts on the cd can ensure they are contacting a PlanetLab boot server,
+    and not someone attempting to spoof one.</para>
+
+    <para>Number is is accomplished through the use of GPG public and private
+    keys. There exists at PlanetLab Central a GPG private key that is used to
+    sign the scripts downloaded and executed by the cd. The public key is
+    located on the cd, and used to validate the signatures of the packages
+    before execution.</para>
   </section>
 
   <section>
     <title>Hardware Detection</title>
 
-    <para>When a node is being installed, the BootManager must identify which
-    hardware the machine has that is applicable to a running node, and
-    configure the node properly so it can boot properly post-install. The
-    general procedure for doing so is outline in this section. It is
-    implemented in the <filename>source/systeminfo.py</filename> file.</para>
+    <para>After the Linux kernel is loaded, the first operation is to load the
+    applicable hardware modules for devices on the system, including network
+    drivers, disk drivers, and any others. This process is nearly identical to
+    the process the BootManager uses. During the initial boot cd build
+    process, the script sources/merge_hw_table.py from the bootmanager
+    repository is invoked to create a lookup table to map PCI ids onto kernel
+    modules. For more information about how this script operates, consult the
+    BootMangaer technical documentation.</para>
+  </section>
 
-    <para>The process for identifying which kernel module needs to be load
-    is:</para>
+  <section>
+    <title>Building A BootCD</title>
 
-    <orderedlist>
-      <listitem>
-        <para>Create a lookup table of all modules, and which PCI ids
-        coorespond to this module.</para>
-      </listitem>
+    <para>Previous PlanetLab boot cds were essentially boot cds from other
+    projects, modified for use with PlanetLab. With the introduction of
+    version 3.0 of the boot cd, they are now built from scratch. By doing
+    this, we can ensure that the packages contain on the cd are fully up to
+    date, only the packages we need for booting operations are installed (thus
+    reducing the cd size), and the hardware detection mechanisms match that of
+    the node installer (BootManager).</para>
 
-      <listitem>
-        <para>For each PCI device on the system, lookup its module in the
-        first table.</para>
-      </listitem>
-
-      <listitem>
-        <para>If a module is found, put in into one of two categories of
-        modules, either network module or scsi module, based on the PCI device
-        class.</para>
-      </listitem>
-
-      <listitem>
-        <para>For each network module, write out an 'eth&lt;index&gt;' entry
-        in the modprobe.conf configuration file.</para>
-      </listitem>
-
-      <listitem>
-        <para>For each scsi module, write out a
-        'scsi_hostadapter&lt;index&gt;' entry in the modprobe.conf
-        configuration file.</para>
-      </listitem>
-    </orderedlist>
-
-    <para>This process is fairly straight forward, and is simplified by the
-    fact that we currently do not need support for USB, sound, or video
-    devices when the node is fully running. The boot cd itself uses a similar
-    process, but includes USB devices. Consult the boot cd technical
-    documentation for more information.</para>
-
-    <para>The creation of the PCI id to kernel module table lookup uses three
-    different sources of information, and merges them together into a single
-    table for easier lookups. With these three sources of information, a
-    fairly comprehensive lookup table can be generated for the devices that
-    PlanetLab nodes need to have configured. They include:</para>
+    <para>Though the cds are built from scratch, the process to build a cd is
+    relatively simple, and are as follows:</para>
 
     <orderedlist>
       <listitem>
-        <para>The installed <filename>/usr/share/hwdata/pcitable
-        </filename>file</para>
-
-        <para>Created at the time the hwdata rpm was built, this file contains
-        mappings of PCI ids to devices for a large number of devices. It is
-        not necessarily complete, and doesn't take into account the modules
-        that are actually available by the built PlanetLab kernel, which is a
-        subset of the full set available (again, PlanetLab nodes do not have a
-        use for network or video drivers, and thus are not typically
-        built).</para>
+        <para>The build process is currently only tested with and known to
+        work with Fedora Core 2. You'll need root access on a FC2
+        machine.</para>
       </listitem>
 
       <listitem>
-        <para>From the built kernel, the <filename>modules.pcimap</filename>
-        from the <filename>/lib/modules/&lt;kernelversion&gt;/</filename>
-        directory.</para>
+        <para>Check out the boot cd repository from PlanetLab CVS:</para>
 
-        <para>This file is generated at the time the kernel is installed, and
-        pulls the PCI ids out of each module, for the modules list they
-        devices they support. Not all modules list all devices they sort, and
-        some contain wild cards (that match any device of a single
-        manufacturer).</para>
+        <para><programlisting>cvs -d :pserver:anon@cvs.planet-lab.org:/cvs co bootcd_v3</programlisting></para>
       </listitem>
 
       <listitem>
-        <para>From the built kernel, the <filename>modules.dep</filename> from
-        the <filename>/lib/modules/&lt;kernelversion&gt;/</filename>
-        directory.</para>
+        <para>Initiate the build by running, from the bootcd_v3
+        directory:</para>
 
-        <para>This file is also generated at the time the kernel is installed,
-        but lists the dependencies between various modules. It is used to
-        generate a list of modules that are actually available.</para>
+        <para><programlisting>./build.sh build default</programlisting></para>
+      </listitem>
+
+      <listitem>
+        <para>When complete, the resultant iso image will be located in
+        configurations/default/</para>
       </listitem>
     </orderedlist>
 
-    <para>It should be noted here that SATA (Serial ATA) devices have been
-    known to exist with both a PCI SCSI device class, and with a PCI IDE
-    device class. Under linux 2.6 kernels, all SATA modules need to be listed
-    in modprobe.conf under 'scsi_hostadapter' lines. This case is handled in
-    the hardware loading scripts by making the assumption that if an IDE
-    device matches a loadable module, it should be put in the modprobe.conf
-    file, as 'real' IDE drivers are all currently built into the kernel, and
-    do not need to be loaded. SATA devices that have a PCI SCSI device class
-    are easily identified.</para>
+    <para>The default configuration build above produces a boot cd that is
+    configured to contact the primarily PlanetLab boot servers. To build a
+    custom boot cd that contacts a different server, with a different SSL
+    certificate and GPG key, you will need to create a custom
+    configuration:</para>
 
-    <para>It is enssential that the modprobe.conf configuration file contain
-    the correct drivers for the disks on the system, if they are present, as
-    during kernel installation the creation of the initrd (initial ramdisk)
-    which is responsible for booting the system uses this file to identify
-    which drivers to include in it. A failure to do this typically results in
-    an kernel panic at boot with a 'no init found' message.</para>
+    <orderedlist>
+      <listitem>
+        <para>Change into the bootcd_v3/configurations directory:</para>
+
+        <para><programlisting>cd bootcd_v3/configurations</programlisting></para>
+      </listitem>
+
+      <listitem>
+        <para>Copy the entire default directory, creating a new one with a
+        short name for the custom configuration. The name is only used during
+        the build process, and is not part of the actual cd.</para>
+
+        <para><programlisting>cp -r default mycustomcd</programlisting></para>
+      </listitem>
+
+      <listitem>
+        <para>Edit the configuration file in the new directory. That file
+        contains various fields that allow for the cd operation to be
+        customized, see the section, Build Configuration Options for more
+        information.</para>
+      </listitem>
+
+      <listitem>
+        <para>Once complete, the custom cd can be built with:</para>
+
+        <para><programlisting>./build.sh build mycustomcd</programlisting></para>
+      </listitem>
+    </orderedlist>
+
+    <section>
+      <title>Build Configuration Options</title>
+
+      <para>The configuration file for builds (the default being located at
+      configurations/default/configuration, contains the following values that
+      can be modified to result in a custom build boot cd:</para>
+
+      <para><itemizedlist>
+          <listitem>
+            <para>EXTRA_VERSION</para>
+
+            <para>Set this to add extra version information to this cd. This
+            will be added to the result ISO name, and on the cd. By doing so,
+            you will be able to differentiate the cds from PlanetLab Boot cds
+            (which have no extra version.</para>
+          </listitem>
+
+          <listitem>
+            <para>DESCRIPTION</para>
+
+            <para>A simple text description, one line, of the boot cd.</para>
+          </listitem>
+
+          <listitem>
+            <para>ROOT_PASSWORD</para>
+
+            <para>The crypted password to use for the root account on the boot
+            cd. Only applies to the boot cd, not the root account on an
+            installed and fully running node.</para>
+          </listitem>
+
+          <listitem>
+            <para>PRIMARY_SERVER / BACKUP_SERVER</para>
+
+            <para>The hostname of the server to attempt to contact first, and
+            a backup server if that one fails.</para>
+          </listitem>
+
+          <listitem>
+            <para>PRIMARY_SERVER_PORT / BACKUP_SERVER_PORT</para>
+
+            <para>Which SSL port on the server we should contact (default SSL
+            port is 443). This rarely will need to be changed.</para>
+          </listitem>
+
+          <listitem>
+            <para>PRIMARY_SERVER_PATH / BACKUP_SERVER_PATH</para>
+
+            <para>The path containing the script this cd should download and
+            execute. Can either be a path to an exact file, like
+            /boot/bootscript, or, can be a directory or dynamically executed
+            file, like /boot/index.php or just /boot. In this case, the
+            resultant output of that file/directory should be a signed and
+            executable script.</para>
+          </listitem>
+
+          <listitem>
+            <para>PRIMARY_SERVER_CERT / BACKUP_SERVER_CERT</para>
+
+            <para>The SSL CA certificate(s) for the above server(s). This is
+            used to validate that the server we are contacting has not been
+            spoofed.</para>
+          </listitem>
+
+          <listitem>
+            <para>PRIMARY_SERVER_GPG / BACKUP_SERVER_GPG</para>
+
+            <para>The GPG public key(s) of the private key(s). that was used
+            to sign the script that will be returned by PRIMARY_SERVER_PATH or
+            BACKUP_SERVER_PATH</para>
+          </listitem>
+
+          <listitem>
+            <para>NODE_CONFIGURATION_FILE</para>
+
+            <para>If this cd is to be used exclusively by a single node, that
+            node's network configuration file can be placed on the cd. This is
+            the path on the local system to that configuration file, which
+            will be copied to a known location on the cd and used during boot
+            up.</para>
+          </listitem>
+        </itemizedlist></para>
+
+      <para>With regard to file paths: for the locations of the keys,
+      certificates, and optionally node configuration files, it is easiest to
+      place these files inside the directory with the bootcd configuration
+      file, and simply use the name of the file for the value. See the default
+      configuration file for an example.</para>
+    </section>
+
+    <section>
+      <title>Build Package Sources</title>
+
+      <para>The packages used during the build process, by default, are
+      downloaded from the current PlanetLab Central boot server. To change
+      this, the file yum.conf, in the checked out bootcd_v3 directory, will
+      need to be modified. The yumgroups.xml file, also located in the same
+      directory, is used by the build process to identify which packages
+      should be placed on the resultant cd image. This file should be located
+      in one of the yum rpm repositories specified in yum.conf.</para>
+    </section>
   </section>
 </article>
