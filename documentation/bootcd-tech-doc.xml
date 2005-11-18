@@ -66,7 +66,7 @@
     <title>Basic Operation</title>
 
     <para>The operation of the boot cd, when a machine is started off of one,
-    is fairly straight forward. Essentially, it loads a linux kernel,
+    is fairly straightforward. Essentially, it loads a Linux kernel,
     configures the hardware and network, and fetches a signed script to
     execute. This generic operation allows for the boot cds to be used for any
     number of operations, whether they are installing machines or debug
@@ -96,7 +96,7 @@
     <orderedlist>
       <listitem>
         <para>The boot cd should be immutable. At any point, a PlanetLab
-        administator should be able to reboot a machine into a known safe
+        administrator should be able to reboot a machine into a known safe
         environment to inspect or debug the node.</para>
       </listitem>
 
@@ -114,7 +114,7 @@
 
     <para>Accomplishing 1. is fairly easy: simply require the cds to be burned
     onto a write once media. Once that is accomplished, it is up to local site
-    administators to ensure physical security of the node so the cd is not
+    administrators to ensure physical security of the node so the cd is not
     switched out. Further work may be done by executed scripts to validate a
     boot cd, if necessary (though not currently implemented).</para>
 
@@ -126,7 +126,7 @@
     scripts on the cd can ensure they are contacting a PlanetLab boot server,
     and not someone attempting to spoof one.</para>
 
-    <para>Number is is accomplished through the use of GPG public and private
+    <para>Number is accomplished through the use of GPG public and private
     keys. There exists at PlanetLab Central a GPG private key that is used to
     sign the scripts downloaded and executed by the cd. The public key is
     located on the cd, and used to validate the signatures of the packages
@@ -143,7 +143,7 @@
     process, the script sources/merge_hw_table.py from the bootmanager
     repository is invoked to create a lookup table to map PCI ids onto kernel
     modules. For more information about how this script operates, consult the
-    BootMangaer technical documentation.</para>
+    BootManager technical documentation.</para>
   </section>
 
   <section>
@@ -186,8 +186,8 @@
       </listitem>
     </orderedlist>
 
-    <para>The default configuration build above produces a boot cd that is
-    configured to contact the primarily PlanetLab boot servers. To build a
+    <para>The default configuration built above produces a boot cd that is
+    configured to contact the primary PlanetLab boot servers. To build a
     custom boot cd that contacts a different server, with a different SSL
     certificate and GPG key, you will need to create a custom
     configuration:</para>
@@ -247,8 +247,8 @@
           <listitem>
             <para>ROOT_PASSWORD</para>
 
-            <para>The crypted password to use for the root account on the boot
-            cd. Only applies to the boot cd, not the root account on an
+            <para>The encrypted password to use for the root account on the
+            boot cd. Only applies to the boot cd, not the root account on an
             installed and fully running node.</para>
           </listitem>
 
@@ -288,8 +288,8 @@
           <listitem>
             <para>PRIMARY_SERVER_GPG / BACKUP_SERVER_GPG</para>
 
-            <para>The GPG public key(s) of the private key(s). that was used
-            to sign the script that will be returned by PRIMARY_SERVER_PATH or
+            <para>The GPG public key(s) of the private key(s) that was used to
+            sign the script that will be returned by PRIMARY_SERVER_PATH or
             BACKUP_SERVER_PATH</para>
           </listitem>
 
