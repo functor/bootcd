@@ -314,13 +314,14 @@
     <section>
       <title>Build Package Sources</title>
 
-      <para>The packages used during the build process, by default, are
-      downloaded from the current PlanetLab Central boot server. To change
-      this, the file yum.conf, in the checked out bootcd_v3 directory, will
-      need to be modified. The yumgroups.xml file, also located in the same
-      directory, is used by the build process to identify which packages
-      should be placed on the resultant cd image. This file should be located
-      in one of the yum rpm repositories specified in yum.conf.</para>
+      <para>The packages installed during the build process are
+      downloaded from the boot server specified by the
+      <parameter>PRIMARY_SERVER</parameter> variable, described
+      above. The build script installs the packages defined by the
+      <parameter>BootCD</parameter> yum group. This group should be
+      defined in a <filename>yumgroups.xml</filename> file located at
+      <filename>install-rpms/planetlab/yumgroups.xml</filename> in the
+      document root of the boot server.</para>
     </section>
   </section>
 </article>
