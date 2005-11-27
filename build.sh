@@ -102,7 +102,9 @@ baseurl=http://$PRIMARY_SERVER/install-rpms/updates-fc2/
 name=PlanetLab RPMS -- PlanetLab Central
 baseurl=http://$PRIMARY_SERVER/install-rpms/planetlab/
 EOF
-    yumgroups="http://$PRIMARY_SERVER/install-rpms/planetlab/yumgroups.xml"
+    # XXX Temporary hack until the 3.2 rollout is complete and the
+    # /planetlab/yumgroups.xml file contains the BootCD group.
+    yumgroups="http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/yumgroups.xml"
 
    # Solve the bootstrap problem by including any just built packages in
    # the yum configuration. This cooperates with the PlanetLab build
