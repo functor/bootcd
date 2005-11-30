@@ -100,7 +100,7 @@ baseurl=http://$PRIMARY_SERVER/install-rpms/updates-fc2/
 
 [PlanetLab]
 name=PlanetLab RPMS -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/planetlab/
+baseurl=http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/
 EOF
     # XXX Temporary hack until the 3.2 rollout is complete and the
     # /planetlab/yumgroups.xml file contains the BootCD group.
