@@ -8,7 +8,7 @@ CONFIGURATIONS_DIR=configurations/
 # where built files are stored
 BUILD_DIR=build/
 
-BOOTCD_VERSION="3.2"
+BOOTCD_VERSION="3.1"
 FULL_VERSION_STRING="PlanetLab BootCD"
 OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
     
@@ -29,9 +29,7 @@ INITRD_BYTES_PER_INODE=1024
 
 # make sure the boot manager source is checked out in the same directory
 # as the bootcd_v3 repository
-for BOOTMANAGER_DIR in ../bootmanager-* ../bootmanager ; do
-    [ -d $BOOTMANAGER_DIR ] && break
-done
+BOOTMANAGER_DIR=../bootmanager/
 
 if [ ! -d $BOOTMANAGER_DIR ]; then
     echo "the bootmanager repository needs to be checked out at the same"
@@ -77,57 +75,16 @@ function build_cdroot()
     echo "initialize rpm db"
     mkdir -p $CD_ROOT/var/lib/rpm
     rpm --root $CD_ROOT --initdb
-    
-    # XXX Should download yum.conf from the boot server?
-    echo "generate yum.conf"
-cat >yum.conf <<EOF
-[main]
-cachedir=/var/cache/yum
-debuglevel=2
-logfile=/var/log/yum.log
-pkgpolicy=newest
-### for yum-2.4 in fc4 (this will be ignored by yum-2.0)
-### everything in here, do not scan /etc/yum.repos.d/
-reposdir=/dev/null
-
-[FedoraCore2Base]
-name=Fedora Core 2 Base -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/stock-fc2/
-
-[FedoraCore2Updates]
-name=Fedora Core 2 Updates -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/updates-fc2/
-
-[PlanetLab]
-name=PlanetLab RPMS -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/
-EOF
-    # XXX Temporary hack until the 3.2 rollout is complete and the
-    # /planetlab/yumgroups.xml file contains the BootCD group.
-    yumgroups="http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/yumgroups.xml"
-
-   # Solve the bootstrap problem by including any just built packages in
-   # the yum configuration. This cooperates with the PlanetLab build
-   # system.
-   if [ -n "$RPM_BUILD_DIR" ] ; then
-       cat >>yum.conf <<EOF
-[Bootstrap]
-name=Bootstrap RPMS -- $(dirname $RPM_BUILD_DIR)/RPMS/
-baseurl=file://$(dirname $RPM_BUILD_DIR)/RPMS/
-EOF
-       yumgroups="file://$(dirname $RPM_BUILD_DIR)/RPMS/yumgroups.xml"
-   fi
 
     echo "install boot cd base rpms"
     yum -c yum.conf --installroot=$CD_ROOT -y groupinstall $BOOTCD_YUM_GROUP
 
-    # Retrieve all of the packagereq declarations in the BootCD group of the yumgroups.xml file
     echo "checking to make sure rpms were installed"
-    packages=$(curl $yumgroups | sed -n -e '/<name>BootCD<\/name>/,/<name>/{ s/.*<packagereq.*>\(.*\)<\/packagereq>/\1/p }')
+    packages=`cat yumgroups.xml | grep packagereq | sed 's#<[^<]*>##g'`
     set +e
     for package in $packages; do
 	echo "checking for package $package"
-	/usr/sbin/chroot $CD_ROOT /bin/rpm -qi $package > /dev/null
+	chroot $CD_ROOT /bin/rpm -qi $package > /dev/null
 	if [[ "$?" -ne 0 ]]; then
 	    echo "package $package was not installed in the cd root."
 	    echo "make sure it exists in the yum repository."
@@ -142,7 +99,7 @@ EOF
 
     echo "setting up non-ssh authentication"
     mkdir -p $CD_ROOT/etc/samba
-    /usr/sbin/chroot $CD_ROOT /usr/sbin/authconfig --nostart --kickstart \
+    chroot $CD_ROOT /usr/sbin/authconfig --nostart --kickstart \
 	--enablemd5 --enableshadow
 
     echo "setting root password"
@@ -154,12 +111,6 @@ EOF
     mkdir -p $CD_ROOT/usr/relocated/var/lib/
     mv $CD_ROOT/var/lib/rpm $CD_ROOT/usr/relocated/var/lib/
     (cd $CD_ROOT/var/lib && ln -s ../../usr/relocated/var/lib/rpm rpm)
-
-    # get /var/cache/yum out, its 100Mb. create in its place a 
-    # symbolic link to /usr/relocated/var/cache/yum
-    mkdir -p $CD_ROOT/usr/relocated/var/cache/
-    mv $CD_ROOT/var/cache/yum $CD_ROOT/usr/relocated/var/cache/
-    (cd $CD_ROOT/var/cache && ln -s ../../usr/relocated/var/cache/yum yum)
 
     # get /lib/tls out
     mkdir -p $CD_ROOT/usr/relocated/lib
@@ -280,7 +231,7 @@ function build_initrd()
 	$module_dep_file $pci_map_file $pci_table $CD_ROOT/etc/pl_pcitable
 
     dd if=/dev/zero of=$INITRD bs=1M count=$RAMDISK_SIZE
-    /sbin/mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
+    mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
     mkdir -p $INITRD_MOUNT
     mount -o loop,rw $INITRD $INITRD_MOUNT
 
@@ -315,7 +266,7 @@ function build()
     USB_IMAGE=${ISO%*.iso}.usb
     # leave 1 MB of free space on the filesystem
     USB_KB=$(du -kc $ISO $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 + 1024 }')
-    /sbin/mkfs.vfat -C $USB_IMAGE $USB_KB
+    mkfs.vfat -C $USB_IMAGE $USB_KB
 
     mkdir -p $INITRD_MOUNT
     mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
