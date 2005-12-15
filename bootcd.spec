@@ -1,6 +1,6 @@
 %define name bootcd
 %define version 3.2
-%define release 1.planetlab%{?date:.%{date}}
+%define release 1%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 # XXX Get this from /etc/planetlab
 %define configuration default
 
