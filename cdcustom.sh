@@ -28,6 +28,10 @@ function cleanup () {
    umount $ISOINROOT
    echo "Cleaning mount-point"
    rmdir $ISOINROOT
+   if [ -f $NODECONFPLAIN ] ; then
+     echo Cleaning $NODECONFPLAIN
+     rm -f $NODECONFPLAIN
+   fi
 }
 
 function abort () {
@@ -74,6 +78,10 @@ function main () {
      echo "$ISOOUT exists, please remove first - exiting" ; exit 1
    fi
 
+   ### in case the NODECONF is a symlink
+   NODECONFPLAIN=/tmp/$$
+   cp $NODECONF $NODECONFPLAIN
+
    ### summary
    echo -e "Generic ISO image:\r\t\t\t$ISOIN"
    echo -e "Node-specific config:\r\t\t\t$NODECONF"
@@ -110,7 +118,7 @@ function main () {
    trap abort int hup quit err
    mkisofs -o $ISOOUT -R -allow-leading-dots -J -r -b isolinux/isolinux \
    -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-   --graft-points $ISOINROOT isolinux/isolinux=/tmp/isolinux boot/plnode.txt=$NODECONF > $ISOLOG 2>&1
+   --graft-points $ISOINROOT isolinux/isolinux=/tmp/isolinux boot/plnode.txt=$NODECONFPLAIN > $ISOLOG 2>&1
    trap - int hup quit 
    echo Done
    
