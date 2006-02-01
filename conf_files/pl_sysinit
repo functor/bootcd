@@ -8,67 +8,96 @@ echo "pl_sysinit: mounting file systems"
 echo "pl_sysinit: invoking hardware initialization script"
 /etc/init.d/pl_hwinit
 
-echo "pl_sysinit: finding cd to mount on /usr"
-mounted=0
-initrd_version=$(/bin/cat /pl_version)
-mkdir /usr
-
-# so that * expands to empty string if there are no block
-# devices
-shopt -s nullglob
-
-for device in /sys/block/*; do
-    device=$(/bin/basename $device)
-
-    # skipping any devices that start with md or ra (ram) or lo (loop) or
-    # fd (floppy)
-    start_device=${device:0:2}
-    if [ "$start_device" == "ra" ] || [ "$start_device" == "md" ] ||
-	[ "$start_device" == "lo" ] || [ "$start_device" == "fd" ]; then
-	continue
+check_initrd()
+{
+    _mounted=0
+    if [ -f /usr/isolinux/pl_version ] ; then
+        # it mounted, but we should probably make sure its our boot cd
+        # this can be done by making sure the /pl_version file (on initrd)
+        # matches /usr/isolinux/pl_version
+	initrd_version=$(/bin/cat /pl_version)
+	cd_version=$(/bin/cat /usr/isolinux/pl_version)
+	if [ "$initrd_version" == "$cd_version" ]; then
+	    _mounted=1 
+	fi
     fi
+    return $_mounted
+}
 
-    # If this is a removable (e.g., USB flash) device, then try to
-    # look for an ISO image on each of its partitions.
-    if [ "$(cat /sys/block/$device/removable)" = "1" ] ; then
-	partitions=$(/bin/awk "\$4 ~ /${device}[0-9]*/ { print \$4 }" /proc/partitions)
-	for partition in $partitions ; do
-	    echo "pl_sysinit: checking $partition for iso image"
-	    mkdir -p /tmp/$partition
-	    if /bin/mount -o ro -t msdos,ext2 /dev/$partition /tmp/$partition 2>&1 > /dev/null ; then
+check_block_devices()
+{
+    _mounted=0
+
+    # so that * expands to empty string if there are no block devices
+    shopt -s nullglob
+
+    for device in /sys/block/*; do
+	device=$(/bin/basename $device)
+
+        # skipping any devices that start with md or ra (ram) or lo
+	# (loop) or fd (floppy)
+
+	start_device=${device:0:2}
+	if [ "$start_device" == "ra" ] || [ "$start_device" == "md" ] ||
+	    [ "$start_device" == "lo" ] || [ "$start_device" == "fd" ]; then
+	    continue
+	fi
+
+        # If this is a removable (e.g., USB flash) device, then try to
+        # look for an ISO image on each of its partitions.
+	if [ "$(cat /sys/block/$device/removable)" = "1" ] ; then
+	    partitions=$(/bin/awk "\$4 ~ /${device}[0-9]*/ { print \$4 }" /proc/partitions)
+	    for partition in $partitions ; do
+		echo "pl_sysinit: checking $partition for iso image"
+		mkdir -p /tmp/$partition
+		if /bin/mount -o ro -t msdos,ext2 /dev/$partition /tmp/$partition 2>&1 > /dev/null ; then
 		# Look for the first ISO image
-		for iso in /tmp/$partition/*.iso ; do
-		    if /sbin/losetup /dev/loop0 $iso ; then
-			echo "pl_sysinit: using $(basename $iso) on $partition"
-			device="loop0"
-			break
+		    for iso in /tmp/$partition/*.iso ; do
+			if /sbin/losetup /dev/loop0 $iso ; then
+			    echo "pl_sysinit: using $(basename $iso) on $partition"
+			    device="loop0"
+			    break
+			fi
+		    done
+		    if [ "$device" != "loop0" ] ; then
+			/bin/umount /tmp/$partition 2>&1 > /dev/null
 		    fi
-		done
-		if [ "$device" != "loop0" ] ; then
-		    /bin/umount /tmp/$partition 2>&1 > /dev/null
 		fi
-	    fi
-	done
-    fi
-    
-    echo "pl_sysinit: checking $device for /usr contents"
-    /bin/mount -o ro -t iso9660 /dev/$device /usr 2>&1 > /dev/null
-    if [ $? -eq 0 ]; then
+	    done
+	fi
+	
+	echo "pl_sysinit: checking $device for /usr contents"
+	/bin/mount -o ro -t iso9660 /dev/$device /usr 2>&1 > /dev/null
+	if [ $? -eq 0 ]; then
 	# it mounted, but we should probably make sure its our boot cd
 	# this can be done by making sure the /pl_version file (on initrd)
 	# matches /usr/isolinux/pl_version
-	cd_version=$(/bin/cat /usr/isolinux/pl_version)
+	    initrd_version=$(/bin/cat /pl_version)
+	    cd_version=$(/bin/cat /usr/isolinux/pl_version)
 
-	if [ "$initrd_version" != "$cd_version" ]; then
+	    if [ "$initrd_version" != "$cd_version" ]; then
 	    # eh, wrong cd, keep trying
-	    /bin/umount /usr 2>&1 /dev/null
-	else
-	    echo "pl_sysinit: found cd and mounted on /usr"
-	    mounted=1
-	    break
+		/bin/umount /usr 2>&1 /dev/null
+	    else
+		echo "pl_sysinit: found cd and mounted on /usr"
+		_mounted=1
+		break
+	    fi
 	fi
-    fi
-done
+    done
+    return $_mounted
+}
+
+echo "pl_sysinit: finding cd to mount on /usr"
+mounted=0
+check_initrd
+if [ $? -eq 1 ]; then
+    mounted=1
+else
+    [ ! -d /usr ] && mkdir /usr
+    check_block_devices
+    [ $? -eq 1 ] && mounted=1
+fi
 
 if [ $mounted -eq 0 ]; then
     echo "pl_sysinit: unable to find boot cdrom, cannot continue."
