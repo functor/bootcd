@@ -27,7 +27,6 @@ check_initrd()
 check_block_devices()
 {
     _mounted=0
-
     # so that * expands to empty string if there are no block devices
     shopt -s nullglob
 
