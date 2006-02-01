@@ -1,5 +1,5 @@
 %define name bootcd
-%define version 3.2
+%define version 3.3
 %define release 1%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 # XXX Get this from /etc/planetlab
 %define configuration default
@@ -34,15 +34,21 @@ environment.
 %install
 install -d $RPM_BUILD_ROOT/var/www/html/download
 pushd build/%{configuration}
+rm -f $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
 bzip2 -c PlanetLab-BootCD-%{version}.iso > \
     $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2
+md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2 >> \
+	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+
 bzip2 -c PlanetLab-BootCD-%{version}.usb > \
     $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2
-md5sum PlanetLab-BootCD-%{version}.{iso,usb} >> \
-    $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
-cd $RPM_BUILD_ROOT/var/www/html/download/
-md5sum PlanetLab-BootCD-%{version}.{iso,usb}.bz2 >> \
-    PlanetLab-BootCD-%{version}.md5
+md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2 >> \
+	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+
+bzip2 -c PlanetLab-BootCD-%{version}-biginitrd.usb > \
+    $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2
+md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2 >> \
+	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
 popd
     
 # If run under sudo, allow user to delete the build directory
@@ -72,9 +78,13 @@ EOF
 %defattr(-,root,root,-)
 /var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2
 /var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2
+/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2
 /var/www/html/download/PlanetLab-BootCD-%{version}.md5
 
 %changelog
+* Mon Jan 29 2006 Marc E. Fiuczynski <mef@cs.princeton.edu> - 
+- added biginitrd usb image
+
 * Fri Sep  2 2005 Mark Huang <mlhuang@cotton.CS.Princeton.EDU> - 
 - Initial build.
 
