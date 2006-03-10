@@ -110,6 +110,7 @@ EOF
    # the yum configuration. This cooperates with the PlanetLab build
    # system.
    if [ -n "$RPM_BUILD_DIR" ] ; then
+       yum-arch $(dirname $RPM_BUILD_DIR)/RPMS
        cat >>yum.conf <<EOF
 [Bootstrap]
 name=Bootstrap RPMS -- $(dirname $RPM_BUILD_DIR)/RPMS/
