@@ -111,6 +111,12 @@ EOF
    # system.
    if [ -n "$RPM_BUILD_DIR" ] ; then
        yum-arch $(dirname $RPM_BUILD_DIR)/RPMS
+       createrepo $(dirname $RPM_BUILD_DIR)/RPMS || :
+       # If run under sudo, allow user to delete the headers/ and
+       # repodata/ directories.
+       if [ -n "$SUDO_USER" ] ; then
+	   chown -R $SUDO_USER $(dirname $RPM_BUILD_DIR)/RPMS
+       fi
        cat >>yum.conf <<EOF
 [Bootstrap]
 name=Bootstrap RPMS -- $(dirname $RPM_BUILD_DIR)/RPMS/
