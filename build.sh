@@ -8,7 +8,7 @@ CONFIGURATIONS_DIR=configurations/
 # where built files are stored
 BUILD_DIR=build/
 
-BOOTCD_VERSION="3.2"
+BOOTCD_VERSION="3.3"
 FULL_VERSION_STRING="PlanetLab BootCD"
 OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
     
@@ -110,6 +110,13 @@ EOF
    # the yum configuration. This cooperates with the PlanetLab build
    # system.
    if [ -n "$RPM_BUILD_DIR" ] ; then
+       yum-arch $(dirname $RPM_BUILD_DIR)/RPMS
+       createrepo $(dirname $RPM_BUILD_DIR)/RPMS || :
+       # If run under sudo, allow user to delete the headers/ and
+       # repodata/ directories.
+       if [ -n "$SUDO_USER" ] ; then
+	   chown -R $SUDO_USER $(dirname $RPM_BUILD_DIR)/RPMS
+       fi
        cat >>yum.conf <<EOF
 [Bootstrap]
 name=Bootstrap RPMS -- $(dirname $RPM_BUILD_DIR)/RPMS/
@@ -188,11 +195,9 @@ EOF
     touch $CD_ROOT/.built
 }
 
-function build_initrd()
+function init_initrd()
 {
-    echo "building initrd"
-    rm -f $INITRD
-    rm -f $INITRD.gz
+    echo "initialize configuration files"
 
     echo "copy fstab and mtab"
     cp -f $CONF_FILES_DIR/fstab $CD_ROOT/etc/
@@ -252,7 +257,6 @@ function build_initrd()
     cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
 
     echo "copying isolinux configuration files"
-    cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
     echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/message.txt
 
     echo "writing /etc/issue"
@@ -267,11 +271,6 @@ function build_initrd()
 	    $CD_ROOT/usr/boot/plnode.txt
     fi
 
-    echo "making the isolinux initrd kernel command line match rd size"
-    let INITRD_SIZE_KB=$(($RAMDISK_SIZE * 1024))
-    sed -i "s#ramdisk_size=0#ramdisk_size=$INITRD_SIZE_KB#g" \
-	$CD_ROOT/usr/isolinux/isolinux.cfg
-
     echo "building pcitable for hardware detection"
     pci_map_file=`find $CD_ROOT/lib/modules/ -name modules.pcimap | head -1`
     module_dep_file=`find $CD_ROOT/lib/modules/ -name modules.dep | head -1`
@@ -279,7 +278,33 @@ function build_initrd()
     $BOOTMANAGER_DIR/source/merge_hw_tables.py \
 	$module_dep_file $pci_map_file $pci_table $CD_ROOT/etc/pl_pcitable
 
-    dd if=/dev/zero of=$INITRD bs=1M count=$RAMDISK_SIZE
+}
+
+function build_initrd()
+{
+    big=$1
+
+    echo "building initrd"
+    rm -f $INITRD
+    rm -f $INITRD.gz
+    rm -f $CD_ROOT/usr/isolinux/initrd
+    rm -f $CD_ROOT/usr/isolinux/initrd.gz
+
+    TOTAL_SIZE=$(du -ksc $CD_ROOT | awk '$2 == "total" { print $1}')
+    if [ $big -eq 1 ]; then
+	let TOTAL_SIZE=$TOTAL_SIZE-$(du -ksc $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1}')
+    else
+	let TOTAL_SIZE=$TOTAL_SIZE-$(du -ksc $CD_ROOT/usr | awk '$2 == "total" { print $1}')
+    fi
+    let INITRD_SIZE=($TOTAL_SIZE/1024)+$RAMDISK_SIZE+4
+
+    echo "making the isolinux initrd kernel command line match rd size"
+    let INITRD_SIZE_KB=$(($INITRD_SIZE * 1024))
+    cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
+    sed -i "s#ramdisk_size=0#ramdisk_size=$INITRD_SIZE_KB#g" \
+	$CD_ROOT/usr/isolinux/isolinux.cfg
+
+    dd if=/dev/zero of=$INITRD bs=1M count=$INITRD_SIZE
     /sbin/mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
     mkdir -p $INITRD_MOUNT
     mount -o loop,rw $INITRD $INITRD_MOUNT
@@ -290,11 +315,22 @@ function build_initrd()
     find . -path ./usr -prune -o -print | cpio -p -d -u $INITRD_MOUNT
     popd
 
+    if [ $big -eq 1 ]; then
+	echo "copy usr to ramdisk"
+	pushd .
+	cd $CD_ROOT
+	find ./usr -path ./usr/isolinux -o -print | cpio -p -d -u $INITRD_MOUNT
+	popd
+    fi
+
     umount $INITRD_MOUNT
     rmdir $INITRD_MOUNT
     
+    # INITRD_SIZE=$(`ls -sh $INITRD | awk '{print $1}'`)
+    # echo "initrd size = $INITRD_SIZE"
     echo "compressing ramdisk"
-    gzip $INITRD
+    gzip -9 $INITRD
+    mv -f $INITRD.gz $CD_ROOT/usr/isolinux
 }
 
 function build()
@@ -303,7 +339,11 @@ function build()
     build_cdroot
 
     # always build/rebuild initrd
-    build_initrd
+    init_initrd
+
+    ####################################################################################
+    # build small initrd for small iso and usb image
+    build_initrd 0
 
     # build iso image
     rm -f $ISO
@@ -320,8 +360,31 @@ function build()
     mkdir -p $INITRD_MOUNT
     mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
 
-    # populate the root of the image with the iso, pl_version, and the syslinux files
+    # populate the root of the image with pl_version, and the syslinux files
     cp -a $ISO $INITRD_MOUNT
+    cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
+    cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
+
+    umount $INITRD_MOUNT
+    rmdir $INITRD_MOUNT
+
+    # make it bootable
+    syslinux $USB_IMAGE
+
+    ####################################################################################
+    # build small initrd for small iso and usb image
+    build_initrd 1
+    
+    # build usb image and make it bootable with syslinux (instead of isolinux)
+    USB_IMAGE=${ISO%*.iso}-biginitrd.usb
+    # leave 1 MB of free space on the filesystem
+    USB_KB=$(du -kc $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 + 1024 }')
+    /sbin/mkfs.vfat -C $USB_IMAGE $USB_KB
+
+    mkdir -p $INITRD_MOUNT
+    mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
+
+    # populate the root of the image with pl_version, and the syslinux files
     cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
     cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
 
@@ -382,10 +445,15 @@ if [[ "$1" == "clean" || "$1" == "burn" || "$1" == "build" ]]; then
     mkdir -p $CD_ROOT
 
     # location of the uncompressed ramdisk image
-    INITRD=$CD_ROOT/usr/isolinux/initrd
+    INITRD=`pwd`/$BUILD_DIR/initrd
 
     # temporary mount point for rd
-    INITRD_MOUNT=`pwd`/$BUILD_DIR/rd
+    MYPWD=`pwd`
+    INITRD_MOUNT=`mktemp -q -p $MYPWD/$BUILD_DIR -d -t rd.XXXXXXXX`
+    if [ $? -ne 0 ]; then
+	echo "failed to create tempory mount point for initrd"
+	exit 1
+    fi
 
 
     case $action in 
