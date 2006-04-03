@@ -320,6 +320,7 @@ else
     /sbin/ifconfig $ETH_DEVICE $IP_ADDRESS broadcast $IP_BROADCASTADDR \
 	netmask $IP_NETMASK
     /sbin/route add default gw $IP_GATEWAY dev $ETH_DEVICE
+    /bin/hostname "$HOST_NAME.$DOMAIN_NAME"
 
     if [[ -z "$IP_DNS1" ]]; then
 	echo "pl_netinit: no dns server specified, cannot continue."
