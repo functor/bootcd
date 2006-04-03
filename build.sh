@@ -1,475 +1,209 @@
 #!/bin/bash
+#
+# Builds custom BootCD ISO and USB images in the current
+# directory. For backward compatibility, if an old-style static
+# configuration is specified, that configuration file will be parsed
+# instead of the current PLC configuration in
+# /etc/planetlab/plc_config.
+#
+# Aaron Klingaman <alk@absarokasoft.com>
+# Mark Huang <mlhuang@cs.princeton.edu>
+# Copyright (C) 2004-2006 The Trustees of Princeton University
+#
+# $Id: build.sh,v 1.5 2006/03/29 17:08:45 mlhuang Exp $
+#
 
-set -e
+CONFIGURATION=default
+NODE_CONFIGURATION_FILE=
 
-# where the boot cd build config files are stored (and certificats/keys)
-CONFIGURATIONS_DIR=configurations/
+usage()
+{
+    echo "Usage: build.sh [OPTION]..."
+    echo "	-c name		(Deprecated) Static configuration to use (default: $CONFIGURATION)"
+    echo "	-f planet.cnf	Node to customize CD for (default: none)"
+    echo "	-h		This message"
+    exit 1
+}
 
-# where built files are stored
-BUILD_DIR=build/
-
-BOOTCD_VERSION="3.3"
-FULL_VERSION_STRING="PlanetLab BootCD"
-OUTPUT_IMAGE_NAME='PlanetLab-BootCD'
-    
-SYSLINUX_SRC=sources/syslinux-2.11.tar.bz2
-
-BOOTCD_YUM_GROUP=BootCD
-
-CDRECORD_FLAGS="-v -dao"
-
-CONF_FILES_DIR=conf_files/
-
-# size of the ram disk in MB
-RAMDISK_SIZE=64
-
-# the bytes per inode ratio (the -i value in mkfs.ext2) for the ramdisk
-INITRD_BYTES_PER_INODE=1024
-
-
-# make sure the boot manager source is checked out in the same directory
-# as the bootcd_v3 repository
-for BOOTMANAGER_DIR in ../bootmanager-* ../bootmanager ; do
-    [ -d $BOOTMANAGER_DIR ] && break
+# Get options
+while getopts "c:f:h" opt ; do
+    case $opt in
+	c)
+	    CONFIGURATION=$OPTARG
+	    ;;
+	f)
+	    NODE_CONFIGURATION_FILE=$OPTARG
+	    ;;
+	h|*)
+	    usage
+	    ;;
+    esac
 done
 
-if [ ! -d $BOOTMANAGER_DIR ]; then
-    echo "the bootmanager repository needs to be checked out at the same"
-    echo "level as this directory, for the merge_hw_tables.py script"
-    exit
+# Do not tolerate errors
+set -e
+
+# Change to our source directory
+srcdir=$(cd $(dirname $0) && pwd -P)
+pushd $srcdir
+
+# Root of the isofs
+isofs=$PWD/build/isofs
+
+# Build reference image if it does not exist. This should only need to
+# be executed once at build time, never at run time.
+if [ ! -f $isofs/bootcd.img ] ; then
+    ./prep.sh
 fi
 
+# build/version.txt written by prep.sh
+BOOTCD_VERSION=$(cat build/version.txt)
 
-function usage()
-{
-    echo "Usage: build.sh <action> [<configuration>]"
-    echo "Action: build burn clean"
+if [ -f /etc/planetlab/plc_config ] ; then
+    # Source PLC configuration
+    . /etc/planetlab/plc_config
+elif [ -d configurations/$CONFIGURATION ] ; then
+    # (Deprecated) Source static configuration
+    . configurations/$CONFIGURATION/configuration
+    PLC_NAME="PlanetLab"
+    if [ -n "$EXTRA_VERSION" ] ; then
+	BOOTCD_VERSION="$BOOTCD_VERSION $EXTRA_VERSION"
+    fi
+    PLC_BOOT_HOST=$PRIMARY_SERVER
+    PLC_BOOT_SSL_PORT=$PRIMARY_SERVER_PORT
+    PLC_BOOT_SSL_CRT=configurations/$CONFIGURATION/$PRIMARY_SERVER_CERT
+    PLC_ROOT_GPG_KEY_PUB=configurations/$CONFIGURATION/$PRIMARY_SERVER_GPG
+fi
+
+FULL_VERSION_STRING="$PLC_NAME BootCD $BOOTCD_VERSION"
+
+# Root of the ISO and USB images
+overlay=$(mktemp -d /tmp/overlay.XXXXXX)
+install -d -m 755 $overlay
+trap "rm -rf $overlay" ERR
+
+# Create version files
+echo "* Creating version files"
+
+# Boot Manager compares pl_version in both places to make sure that
+# the right CD is mounted. We used to boot from an initrd and mount
+# the CD on /usr. Now we just run everything out of the initrd.
+for file in $overlay/pl_version $overlay/usr/isolinux/pl_version ; do
+    mkdir -p $(dirname $file)
+    echo "$FULL_VERSION_STRING" >$file
+done
+
+# Install boot server configuration files
+echo "* Installing boot server configuration files"
+
+# We always intended to bring up and support backup boot servers,
+# but never got around to it. Just install the same parameters for
+# both for now.
+for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
+	install -D -m 644 $PLC_BOOT_SSL_CRT $dir/cacert.pem
+	install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
+	echo "$PLC_BOOT_HOST" >$dir/boot_server
+	echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
+	echo "/boot/" >$dir/boot_server_path
+done
+
+# (Deprecated) Install old-style boot server configuration files
+install -D -m 644 $PLC_BOOT_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
+echo "$FULL_VERSION_STRING" >$overlay/usr/bootme/ID
+echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER
+echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER_IP
+echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
+
+# Generate /etc/issue
+echo "* Generating /etc/issue"
+mkdir -p $overlay/etc
+(
+    echo "$FULL_VERSION_STRING"
+    echo 'Kernel \r on an \m'
     echo
-    echo "If configuration is missing, 'default' is loaded"
-    exit
-}
+    echo
+) >$overlay/etc/issue
 
+# Set root password
+echo "* Setting root password"
 
-function build_cdroot()
-{
-    if [ -f $CD_ROOT/.built ]; then
-	echo "cd root already built, skipping"
-	return
-    fi
-
-    clean
-    
-    mkdir -p $CD_ROOT/dev/pts
-    mkdir -p $CD_ROOT/proc
-    mkdir -p $CD_ROOT/etc
-
-    echo "copy fstab and mtab"
-    cp -f $CONF_FILES_DIR/fstab $CD_ROOT/etc/
-    cp -f $CONF_FILES_DIR/mtab $CD_ROOT/etc/
-
-    echo "setup rpm to install only en_US locale and no docs"
-    mkdir -p $CD_ROOT/etc/rpm
-    cp -f $CONF_FILES_DIR/macros $CD_ROOT/etc/rpm
-    # trick rpm and yum
-    export HOME=$PWD
-    cp -f $CONF_FILES_DIR/macros $PWD/.rpmmacros
-
-    echo "initialize rpm db"
-    mkdir -p $CD_ROOT/var/lib/rpm
-    rpm --root $CD_ROOT --initdb
-    
-    # XXX Should download yum.conf from the boot server?
-    echo "generate yum.conf"
-cat >yum.conf <<EOF
-[main]
-cachedir=/var/cache/yum
-debuglevel=2
-logfile=/var/log/yum.log
-pkgpolicy=newest
-### for yum-2.4 in fc4 (this will be ignored by yum-2.0)
-### everything in here, do not scan /etc/yum.repos.d/
-reposdir=/dev/null
-
-[FedoraCore2Base]
-name=Fedora Core 2 Base -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/stock-fc2/
-
-[FedoraCore2Updates]
-name=Fedora Core 2 Updates -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/updates-fc2/
-
-[PlanetLab]
-name=PlanetLab RPMS -- PlanetLab Central
-baseurl=http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/
+if [ -z "$ROOT_PASSWORD" ] ; then
+    # Generate an encrypted password with crypt() if not defined
+    # in a static configuration.
+    ROOT_PASSWORD=$(python <<EOF
+import crypt, random, string
+salt = [random.choice(string.letters + string.digits + "./") for i in range(0,8)]
+print crypt.crypt('$PLC_ROOT_PASSWORD', '\$1\$' + "".join(salt) + '\$')
 EOF
-    # XXX Temporary hack until the 3.2 rollout is complete and the
-    # /planetlab/yumgroups.xml file contains the BootCD group.
-    yumgroups="http://$PRIMARY_SERVER/install-rpms/planetlab-rollout/yumgroups.xml"
-
-   # Solve the bootstrap problem by including any just built packages in
-   # the yum configuration. This cooperates with the PlanetLab build
-   # system.
-   if [ -n "$RPM_BUILD_DIR" ] ; then
-       yum-arch $(dirname $RPM_BUILD_DIR)/RPMS
-       createrepo $(dirname $RPM_BUILD_DIR)/RPMS || :
-       # If run under sudo, allow user to delete the headers/ and
-       # repodata/ directories.
-       if [ -n "$SUDO_USER" ] ; then
-	   chown -R $SUDO_USER $(dirname $RPM_BUILD_DIR)/RPMS
-       fi
-       cat >>yum.conf <<EOF
-[Bootstrap]
-name=Bootstrap RPMS -- $(dirname $RPM_BUILD_DIR)/RPMS/
-baseurl=file://$(dirname $RPM_BUILD_DIR)/RPMS/
-EOF
-       yumgroups="file://$(dirname $RPM_BUILD_DIR)/RPMS/yumgroups.xml"
-   fi
-
-    echo "install boot cd base rpms"
-    yum -c yum.conf --installroot=$CD_ROOT -y groupinstall $BOOTCD_YUM_GROUP
-
-    # Retrieve all of the packagereq declarations in the BootCD group of the yumgroups.xml file
-    echo "checking to make sure rpms were installed"
-    packages=$(curl $yumgroups | sed -n -e '/<name>BootCD<\/name>/,/<name>/{ s/.*<packagereq.*>\(.*\)<\/packagereq>/\1/p }')
-    set +e
-    for package in $packages; do
-	echo "checking for package $package"
-	/usr/sbin/chroot $CD_ROOT /bin/rpm -qi $package > /dev/null
-	if [[ "$?" -ne 0 ]]; then
-	    echo "package $package was not installed in the cd root."
-	    echo "make sure it exists in the yum repository."
-	    exit 1
-	fi
-    done
-    set -e
-    
-    echo "removing unneccessary build files"
-    (cd $CD_ROOT/lib/modules && \
-	find ./ -type d -name build -maxdepth 2 -exec rm -rf {} \;)
-
-    echo "setting up non-ssh authentication"
-    mkdir -p $CD_ROOT/etc/samba
-    /usr/sbin/chroot $CD_ROOT /usr/sbin/authconfig --nostart --kickstart \
-	--enablemd5 --enableshadow
-
-    echo "setting root password"
-    sed -i "s#root::#root:$ROOT_PASSWORD:#g" $CD_ROOT/etc/shadow
-
-    echo "relocate some large directories out of the root system"
-    # get /var/lib/rpm out, its 12mb. create in its place a 
-    # symbolic link to /usr/relocated/var/lib/rpm
-    mkdir -p $CD_ROOT/usr/relocated/var/lib/
-    mv $CD_ROOT/var/lib/rpm $CD_ROOT/usr/relocated/var/lib/
-    (cd $CD_ROOT/var/lib && ln -s ../../usr/relocated/var/lib/rpm rpm)
-
-    # get /var/cache/yum out, its 100Mb. create in its place a 
-    # symbolic link to /usr/relocated/var/cache/yum
-    mkdir -p $CD_ROOT/usr/relocated/var/cache/
-    mv $CD_ROOT/var/cache/yum $CD_ROOT/usr/relocated/var/cache/
-    (cd $CD_ROOT/var/cache && ln -s ../../usr/relocated/var/cache/yum yum)
-
-    # get /lib/tls out
-    mkdir -p $CD_ROOT/usr/relocated/lib
-    mv $CD_ROOT/lib/tls $CD_ROOT/usr/relocated/lib/
-    (cd $CD_ROOT/lib && ln -s ../usr/relocated/lib/tls tls)
-
-    echo "extracting syslinux, copying isolinux files to cd"
-    mkdir -p $CD_ROOT/usr/isolinux/
-    mkdir -p $BUILD_DIR/syslinux
-    tar -C $BUILD_DIR/syslinux -xjvf $SYSLINUX_SRC
-    find $BUILD_DIR/syslinux -name isolinux.bin \
-	-exec cp -f {} $CD_ROOT/usr/isolinux/ \;
-
-    echo "moving kernel to isolinux directory"
-    KERNEL=$CD_ROOT/boot/vmlinuz-*
-    mv -f $KERNEL $CD_ROOT/usr/isolinux/kernel
-
-    echo "moving /usr/bin/find and /usr/bin/dirname to /bin"
-    mv $CD_ROOT/usr/bin/find $CD_ROOT/bin/
-    mv $CD_ROOT/usr/bin/dirname $CD_ROOT/bin/
-
-    echo "creating version files"
-    echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/pl_version
-    echo "$FULL_VERSION_STRING" > $CD_ROOT/pl_version
-
-    touch $CD_ROOT/.built
-}
-
-function init_initrd()
-{
-    echo "initialize configuration files"
-
-    echo "copy fstab and mtab"
-    cp -f $CONF_FILES_DIR/fstab $CD_ROOT/etc/
-    cp -f $CONF_FILES_DIR/mtab $CD_ROOT/etc/
-
-    echo "installing generic modprobe.conf"
-    cp -f $CONF_FILES_DIR/modprobe.conf $CD_ROOT/etc/
-
-    echo "installing our own inittab and init scripts"
-    cp -f $CONF_FILES_DIR/inittab $CD_ROOT/etc
-    init_scripts="pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot"
-    for script in $init_scripts; do
-	cp -f $CONF_FILES_DIR/$script $CD_ROOT/etc/init.d/
-	chmod +x $CD_ROOT/etc/init.d/$script
-    done
-
-    echo "setup basic networking files"
-    cp -f $CONF_FILES_DIR/hosts $CD_ROOT/etc/
-
-    echo "copying sysctl.conf (fix tcp window scaling and broken routers)"
-    cp -f $CONF_FILES_DIR/sysctl.conf $CD_ROOT/etc/
-
-    echo "setup default network conf file"
-    mkdir -p $CD_ROOT/usr/boot
-    cp -f $CONF_FILES_DIR/default-net.cnf $CD_ROOT/usr/boot/
-
-    echo "setup boot server configuration"
-    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_CERT $CD_ROOT/usr/boot/cacert.pem
-    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_GPG $CD_ROOT/usr/boot/pubring.gpg
-    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/boot/boot_server
-    echo "$PRIMARY_SERVER_PORT" > $CD_ROOT/usr/boot/boot_server_port
-    echo "$PRIMARY_SERVER_PATH" > $CD_ROOT/usr/boot/boot_server_path
-
-    echo "setup backup boot server configuration"
-    mkdir -p $CD_ROOT/usr/boot/backup
-    cp -f $CURRENT_CONFIG_DIR/$BACKUP_SERVER_CERT \
-	$CD_ROOT/usr/boot/backup/cacert.pem
-    cp -f $CURRENT_CONFIG_DIR/$BACKUP_SERVER_GPG \
-	$CD_ROOT/usr/boot/backup/pubring.gpg
-    echo "$BACKUP_SERVER" > $CD_ROOT/usr/boot/backup/boot_server
-    echo "$BACKUP_SERVER_PORT" > $CD_ROOT/usr/boot/backup/boot_server_port
-    echo "$BACKUP_SERVER_PATH" > $CD_ROOT/usr/boot/backup/boot_server_path
-
-    echo "copying old boot cd directory bootme (TEMPORARY)"
-    cp -r bootme_old $CD_ROOT/usr/bootme
-    echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/bootme/ID
-    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/bootme/BOOTSERVER
-    echo "$PRIMARY_SERVER" > $CD_ROOT/usr/bootme/BOOTSERVER_IP
-    echo "$PRIMARY_SERVER_PORT" > $CD_ROOT/usr/bootme/BOOTPORT
-
-    echo "copying cacert to old boot cd directory bootme (TEMPORARY)"
-    mkdir -p $CD_ROOT/usr/bootme/cacert/$PRIMARY_SERVER/
-    cp -f $CURRENT_CONFIG_DIR/$PRIMARY_SERVER_CERT \
-	$CD_ROOT/usr/bootme/cacert/$PRIMARY_SERVER/cacert.pem
-
-    echo "forcing lvm to make lvm1 partitions (TEMPORARY)"
-    cp -f $CONF_FILES_DIR/lvm.conf $CD_ROOT/etc/lvm/
-
-    echo "copying isolinux configuration files"
-    echo "$FULL_VERSION_STRING" > $CD_ROOT/usr/isolinux/message.txt
-
-    echo "writing /etc/issue"
-    echo "$FULL_VERSION_STRING" > $CD_ROOT/etc/issue
-    echo "Kernel \r on an \m" >> $CD_ROOT/etc/issue
-    echo "" >> $CD_ROOT/etc/issue
-    echo "" >> $CD_ROOT/etc/issue
-
-    if [[ ! -z "$NODE_CONFIGURATION_FILE" ]]; then
-	echo "Copying node configuration file to cd"
-	cp -f $CURRENT_CONFIG_DIR/$NODE_CONFIGURATION_FILE \
-	    $CD_ROOT/usr/boot/plnode.txt
-    fi
-
-    echo "building pcitable for hardware detection"
-    pci_map_file=`find $CD_ROOT/lib/modules/ -name modules.pcimap | head -1`
-    module_dep_file=`find $CD_ROOT/lib/modules/ -name modules.dep | head -1`
-    pci_table=$CD_ROOT/usr/share/hwdata/pcitable
-    $BOOTMANAGER_DIR/source/merge_hw_tables.py \
-	$module_dep_file $pci_map_file $pci_table $CD_ROOT/etc/pl_pcitable
-
-}
-
-function build_initrd()
-{
-    big=$1
-
-    echo "building initrd"
-    rm -f $INITRD
-    rm -f $INITRD.gz
-    rm -f $CD_ROOT/usr/isolinux/initrd
-    rm -f $CD_ROOT/usr/isolinux/initrd.gz
-
-    TOTAL_SIZE=$(du -ksc $CD_ROOT | awk '$2 == "total" { print $1}')
-    if [ $big -eq 1 ]; then
-	let TOTAL_SIZE=$TOTAL_SIZE-$(du -ksc $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1}')
-    else
-	let TOTAL_SIZE=$TOTAL_SIZE-$(du -ksc $CD_ROOT/usr | awk '$2 == "total" { print $1}')
-    fi
-    let INITRD_SIZE=($TOTAL_SIZE/1024)+$RAMDISK_SIZE+4
-
-    echo "making the isolinux initrd kernel command line match rd size"
-    let INITRD_SIZE_KB=$(($INITRD_SIZE * 1024))
-    cp -f $CONF_FILES_DIR/isolinux.cfg $CD_ROOT/usr/isolinux/
-    sed -i "s#ramdisk_size=0#ramdisk_size=$INITRD_SIZE_KB#g" \
-	$CD_ROOT/usr/isolinux/isolinux.cfg
-
-    dd if=/dev/zero of=$INITRD bs=1M count=$INITRD_SIZE
-    /sbin/mkfs.ext2 -F -m 0 -i $INITRD_BYTES_PER_INODE $INITRD
-    mkdir -p $INITRD_MOUNT
-    mount -o loop,rw $INITRD $INITRD_MOUNT
-
-    echo "copy all files except usr to ramdisk"
-    pushd .
-    cd $CD_ROOT
-    find . -path ./usr -prune -o -print | cpio -p -d -u $INITRD_MOUNT
-    popd
-
-    if [ $big -eq 1 ]; then
-	echo "copy usr to ramdisk"
-	pushd .
-	cd $CD_ROOT
-	find ./usr -path ./usr/isolinux -o -print | cpio -p -d -u $INITRD_MOUNT
-	popd
-    fi
-
-    umount $INITRD_MOUNT
-    rmdir $INITRD_MOUNT
-    
-    # INITRD_SIZE=$(`ls -sh $INITRD | awk '{print $1}'`)
-    # echo "initrd size = $INITRD_SIZE"
-    echo "compressing ramdisk"
-    gzip -9 $INITRD
-    mv -f $INITRD.gz $CD_ROOT/usr/isolinux
-}
-
-function build()
-{
-    # build base image via yum
-    build_cdroot
-
-    # always build/rebuild initrd
-    init_initrd
-
-    ####################################################################################
-    # build small initrd for small iso and usb image
-    build_initrd 0
-
-    # build iso image
-    rm -f $ISO
-    mkisofs -o $ISO -R -allow-leading-dots -J -r -b isolinux/isolinux.bin \
-	-c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-	$CD_ROOT/usr
-
-    # build usb image and make it bootable with syslinux (instead of isolinux)
-    USB_IMAGE=${ISO%*.iso}.usb
-    # leave 1 MB of free space on the filesystem
-    USB_KB=$(du -kc $ISO $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 + 1024 }')
-    /sbin/mkfs.vfat -C $USB_IMAGE $USB_KB
-
-    mkdir -p $INITRD_MOUNT
-    mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
-
-    # populate the root of the image with pl_version, and the syslinux files
-    cp -a $ISO $INITRD_MOUNT
-    cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
-    cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
-
-    umount $INITRD_MOUNT
-    rmdir $INITRD_MOUNT
-
-    # make it bootable
-    syslinux $USB_IMAGE
-
-    ####################################################################################
-    # build small initrd for small iso and usb image
-    build_initrd 1
-    
-    # build usb image and make it bootable with syslinux (instead of isolinux)
-    USB_IMAGE=${ISO%*.iso}-biginitrd.usb
-    # leave 1 MB of free space on the filesystem
-    USB_KB=$(du -kc $CD_ROOT/usr/isolinux | awk '$2 == "total" { print $1 + 1024 }')
-    /sbin/mkfs.vfat -C $USB_IMAGE $USB_KB
-
-    mkdir -p $INITRD_MOUNT
-    mount -o loop,rw $USB_IMAGE $INITRD_MOUNT
-
-    # populate the root of the image with pl_version, and the syslinux files
-    cp -a $CD_ROOT/usr/isolinux/{initrd.gz,kernel,message.txt,pl_version} $INITRD_MOUNT
-    cp -a $CD_ROOT/usr/isolinux/isolinux.cfg $INITRD_MOUNT/syslinux.cfg
-
-    umount $INITRD_MOUNT
-    rmdir $INITRD_MOUNT
-
-    # make it bootable
-    syslinux $USB_IMAGE
-}
-
-function burn()
-{
-    cdrecord $CDRECORD_FLAGS -data $ISO
-}
-
-function clean()
-{
-    rm -rf $CD_ROOT
-    rm -rf $BUILD_DIR/syslinux
-    rm -rf $BUILD_DIR/$INITRD_MOUNT
-    rm -rf $BUILD_DIR
-    rm -f $ISO
-    rmdir --ignore-fail-on-non-empty build
-}
-
-if [[ "$1" == "clean" || "$1" == "burn" || "$1" == "build" ]]; then
-    action=$1
-    configuration=$2
-
-    if [[ -z "$configuration" ]]; then
-	configuration=default
-    fi
-
-    echo "Loading configuration $configuration"
-    CURRENT_CONFIG_DIR=$CONFIGURATIONS_DIR/$configuration
-    . $CURRENT_CONFIG_DIR/configuration
-
-    # setup vars for this configuration
-
-    # version string for this build
-    if [[ ! -z "$EXTRA_VERSION" ]]; then
-	FULL_VERSION_STRING="$FULL_VERSION_STRING $EXTRA_VERSION"
-    fi
-    FULL_VERSION_STRING="$FULL_VERSION_STRING $BOOTCD_VERSION"
-
-    # destination image
-    if [[ ! -z "$EXTRA_VERSION" ]]; then
-	OUTPUT_IMAGE_NAME="$OUTPUT_IMAGE_NAME-$EXTRA_VERSION"
-    fi
-    OUTPUT_IMAGE_NAME="$OUTPUT_IMAGE_NAME-$BOOTCD_VERSION"
-
-    # setup build directories
-    BUILD_DIR=build/$configuration
-    mkdir -p $BUILD_DIR
-    ISO=$BUILD_DIR/`echo $OUTPUT_IMAGE_NAME | sed -e "s/%version/$BOOTCD_VERSION/"`.iso
-
-    CD_ROOT=`pwd`/$BUILD_DIR/cdroot
-    mkdir -p $CD_ROOT
-
-    # location of the uncompressed ramdisk image
-    INITRD=`pwd`/$BUILD_DIR/initrd
-
-    # temporary mount point for rd
-    MYPWD=`pwd`
-    INITRD_MOUNT=`mktemp -q -p $MYPWD/$BUILD_DIR -d -t rd.XXXXXXXX`
-    if [ $? -ne 0 ]; then
-	echo "failed to create tempory mount point for initrd"
-	exit 1
-    fi
-
-
-    case $action in 
-	build )
-	    echo "Proceeding with building $DESCRIPTION"
-	    build;;
-
-	clean )
-	    echo "Removing built files for $DESCRIPTION"
-	    clean;;
-
-	burn )
-	    echo "Burning $DESCRIPTION"
-	    burn;;
-    esac    
-else
-    usage
+)
 fi
 
+# build/passwd copied out by prep.sh
+sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" build/passwd \
+    >$overlay/etc/passwd
+
+# Install node configuration file (e.g., if node has no floppy disk or USB slot)
+if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
+    echo "* Installing node configuration file"
+    install -D -m 644 $NODE_CONFIGURATION_FILE $overlay/usr/boot/plnode.txt
+fi
+
+# Pack overlay files into a compressed archive
+echo "* Compressing overlay image"
+(cd $overlay && find . | cpio --quiet -c -o) | gzip -9 >$isofs/overlay.img
+
+rm -rf $overlay
+trap - ERR
+
+# Calculate ramdisk size (total uncompressed size of both archives)
+ramdisk_size=$(gzip -l $isofs/bootcd.img $isofs/overlay.img | tail -1 | awk '{ print $2; }') # bytes
+ramdisk_size=$(($ramdisk_size / 1024)) # kilobytes
+
+# Write isolinux configuration
+echo "$FULL_VERSION_STRING" >$isofs/pl_version
+cat >$isofs/isolinux.cfg <<EOF
+DEFAULT kernel
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw
+DISPLAY pl_version
+PROMPT 0
+TIMEOUT 40
+EOF
+
+# Change back to output directory
+popd
+
+# Create ISO image
+echo "* Creating ISO image"
+iso="$PLC_NAME-BootCD-$BOOTCD_VERSION.iso"
+mkisofs -o "$iso" \
+    -R -allow-leading-dots -J -r \
+    -b isolinux.bin -c boot.cat \
+    -no-emul-boot -boot-load-size 4 -boot-info-table \
+    $isofs
+
+# Create USB image
+echo "* Creating USB image"
+usb="$PLC_NAME-BootCD-$BOOTCD_VERSION.usb"
+
+# Leave 1 MB of free space on the VFAT filesystem
+mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
+
+# Mount it
+tmp=$(mktemp -d /tmp/bootcd.XXXXXX)
+mount -o loop "$usb" $tmp
+trap "umount $tmp; rm -rf $tmp" ERR
+
+# Populate it
+echo "* Populating USB image"
+(cd $isofs && find . | cpio -p -d -u $tmp/)
+
+# Use syslinux instead of isolinux to make the image bootable
+mv $tmp/isolinux.cfg $tmp/syslinux.cfg
+umount $tmp
+rmdir $tmp
+trap - ERR
+
+echo "* Making USB image bootable"
+$srcdir/syslinux/unix/syslinux "$usb"
+
+exit 0
