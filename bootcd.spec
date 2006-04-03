@@ -1,15 +1,13 @@
 %define name bootcd
 %define version 3.3
-%define release 1%{?pldistro:.%{pldistro}}%{?date:.%{date}}
-# XXX Get this from /etc/planetlab
-%define configuration default
+%define release 2%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
-Distribution: PlanetLab 3.2
+Distribution: PlanetLab 3.3
 URL: http://cvs.planet-lab.org/cvs/bootcd_v3
 
-Summary: The PlanetLab Boot CD
+Summary: Boot CD
 Name: bootcd
 Version: %{version}
 Release: %{release}
@@ -18,68 +16,93 @@ Group: System Environment/Base
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
+Requires: dosfstools, mkisofs, gzip
+
 AutoReqProv: no
 %define debug_package %{nil}
 
 %description
-The PlanetLab Boot CD securely boots PlanetLab nodes into an immutable
+The Boot CD securely boots PlanetLab nodes into an immutable
 environment.
+
+%package planetlab
+Summary: PlanetLab Boot CD
+Group: System Environment/Base
+
+%description planetlab
+The default PlanetLab Boot CD, customized to boot from PlanetLab
+Central servers.
 
 %prep
 %setup -q
 
 %build
-./build.sh build %{configuration}
+pushd bootcd_v3
+
+# Build the reference image
+./prep.sh
+
+# Build the default configuration (PlanetLab)
+./build.sh
+
+md5sum PlanetLab-BootCD-%{version}.{iso,usb} \
+    >PlanetLab-BootCD-%{version}.md5
+
+popd
 
 %install
-install -d $RPM_BUILD_ROOT/var/www/html/download
-pushd build/%{configuration}
-rm -f $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
-bzip2 -c PlanetLab-BootCD-%{version}.iso > \
-    $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2
-md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2 >> \
-	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+rm -rf $RPM_BUILD_ROOT
 
-bzip2 -c PlanetLab-BootCD-%{version}.usb > \
-    $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2
-md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2 >> \
-	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+pushd bootcd_v3
 
-bzip2 -c PlanetLab-BootCD-%{version}-biginitrd.usb > \
-    $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2
-md5sum $RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2 >> \
-	$RPM_BUILD_ROOT/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+# Install the reference image and build scripts
+install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
+install -m 755 build.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
+find \
+    build/isofs/bootcd.img \
+    build/isofs/isolinux.bin \
+    build/isofs/kernel \
+    build/passwd \
+    build/version.txt \
+    configurations \
+    syslinux/unix/syslinux | \
+    cpio -p -d -u $RPM_BUILD_ROOT/%{_datadir}/%{name}/
+
+# Install the default images in the download/ directory
+install -d -m 755 $RPM_BUILD_ROOT/var/www/html/download
+install -m 644 PlanetLab-BootCD-%{version}.* \
+    $RPM_BUILD_ROOT/var/www/html/download/
+
 popd
     
-# If run under sudo, allow user to delete the build directory
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+# If run under sudo
 if [ -n "$SUDO_USER" ] ; then
+    # Allow user to delete the build directory
     chown -R $SUDO_USER .
     # Some temporary cdroot files like /var/empty/sshd and
     # /usr/bin/sudo get created with non-readable permissions.
     find . -not -perm +0600 -exec chmod u+rw {} \;
+    # Allow user to delete the built RPM(s)
+    chown -R $SUDO_USER %{_rpmdir}/%{_arch}
 fi
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-# If run under sudo, allow user to delete the built RPM
-if [ -n "$SUDO_USER" ] ; then
-    chown $SUDO_USER %{_rpmdir}/%{_arch}/%{name}-%{version}-%{release}.%{_arch}.rpm
-fi
-
-%post
+%post planetlab
 cat <<EOF
 Remember to GPG sign
-/var/www/html/download/PlanetLab-BootCD-%{version}.{iso,usb}.bz2 with
+/var/www/html/download/PlanetLab-BootCD-%{version}.{iso,usb} with
 the PlanetLab private key.
 EOF
 
 %files
 %defattr(-,root,root,-)
-/var/www/html/download/PlanetLab-BootCD-%{version}.iso.bz2
-/var/www/html/download/PlanetLab-BootCD-%{version}.usb.bz2
-/var/www/html/download/PlanetLab-BootCD-%{version}-biginitrd.usb.bz2
-/var/www/html/download/PlanetLab-BootCD-%{version}.md5
+%{_datadir}/%{name}
+
+%files planetlab
+%defattr(-,root,root,-)
+/var/www/html/download
 
 %changelog
 * Mon Jan 29 2006 Marc E. Fiuczynski <mef@cs.princeton.edu> - 
