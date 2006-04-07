@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.34 2006/04/07 03:50:08 mlhuang Exp $
+# $Id: build.sh,v 1.35 2006/04/07 03:58:07 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -145,6 +145,7 @@ to you. Otherwise, please contact $PLC_MAIL_SUPPORT_ADDRESS.
 Console login at this point is restricted to root. Provide the root
 password of the default $PLC_NAME Central administrator account at the
 time that this CD was created.
+
 EOF
 
 # Set root password
