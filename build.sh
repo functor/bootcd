@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.32 2006/04/03 19:33:56 mlhuang Exp $
+# $Id: build.sh,v 1.33 2006/04/03 20:07:45 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -119,12 +119,18 @@ echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
 # Generate /etc/issue
 echo "* Generating /etc/issue"
 mkdir -p $overlay/etc
-(
-    echo "$FULL_VERSION_STRING"
-    echo 'Kernel \r on an \m'
-    echo
-    echo
-) >$overlay/etc/issue
+cat >$overlay/etc/issue <<EOF
+$PLC_NAME Node: \n
+Kernel \r on an \m
+
+This machine is a node in the $PLC_NAME distributed network.  It has
+not fully booted yet. If you have cancelled the boot process at the
+request of $PLC_NAME Support, please follow the instructions provided
+to you. Otherwise, please contact $PLC_MAIL_SUPPORT_ADDRESS.
+
+Console login at this point is restricted to root. Provide the root
+password of the default $PLC_NAME Central administrator account.
+EOF
 
 # Set root password
 echo "* Setting root password"
