@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.33 2006/04/03 20:07:45 mlhuang Exp $
+# $Id: build.sh,v 1.34 2006/04/07 03:50:08 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -68,6 +68,9 @@ elif [ -d configurations/$CONFIGURATION ] ; then
     # (Deprecated) Source static configuration
     . configurations/$CONFIGURATION/configuration
     PLC_NAME="PlanetLab"
+    PLC_MAIL_SUPPORT_ADDRESS="support@planet-lab.org"
+    PLC_WWW_HOST="www.planet-lab.org"
+    PLC_WWW_PORT=80
     if [ -n "$EXTRA_VERSION" ] ; then
 	BOOTCD_VERSION="$BOOTCD_VERSION $EXTRA_VERSION"
     fi
@@ -118,10 +121,21 @@ echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
 
 # Generate /etc/issue
 echo "* Generating /etc/issue"
+
+if [ "$PLC_WWW_PORT" = "443" ] ; then
+    PLC_WWW_URL="https://$PLC_WWW_HOST/"
+elif [ "$PLC_WWW_PORT" != "80" ] ; then
+    PLC_WWW_URL="http://$PLC_WWW_HOST:$PLC_WWW_PORT/"
+else
+    PLC_WWW_URL="http://$PLC_WWW_HOST/"
+fi
+
 mkdir -p $overlay/etc
 cat >$overlay/etc/issue <<EOF
+$FULL_VERSION_STRING
 $PLC_NAME Node: \n
 Kernel \r on an \m
+$PLC_WWW_URL
 
 This machine is a node in the $PLC_NAME distributed network.  It has
 not fully booted yet. If you have cancelled the boot process at the
@@ -129,7 +143,8 @@ request of $PLC_NAME Support, please follow the instructions provided
 to you. Otherwise, please contact $PLC_MAIL_SUPPORT_ADDRESS.
 
 Console login at this point is restricted to root. Provide the root
-password of the default $PLC_NAME Central administrator account.
+password of the default $PLC_NAME Central administrator account at the
+time that this CD was created.
 EOF
 
 # Set root password
