@@ -97,7 +97,7 @@ wait_dev_list=""
 for interface_class_file in `find /sys/devices -name 'bInterfaceClass'`; do
     interface_class=`cat $interface_class_file`
     if [[ "$interface_class" == $INTERFACE_CLASS_MASS_STORAGE ]]; then
-	wait_dev_list="$wait_dev_list "`/bin/dirname $interface_class_file`
+	wait_dev_list="$wait_dev_list "`dirname $interface_class_file`
     fi
 done
 
