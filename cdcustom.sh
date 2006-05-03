@@ -103,22 +103,22 @@ function main () {
      ### and we cannot use the same name as isolinux.bin either, so we change it to isolinux
      ### the good news is that this way we can check we start from a fresh image
      
-     if [ -e $ISOINROOT/isolinux/isolinux ] ; then
-       echo "$ISOIN already contains isolinux/isolinux"
+     if [ -e $ISOINROOT/isolinux ] ; then
+       echo "$ISOIN already contains isolinux"
        echo "It looks like this is not a first-hand image - exiting"
        cleanup
        exit 1
      fi
 
      echo -n "Copying isolinux.bin in /tmp/isolinux "
-     cp $ISOINROOT/isolinux/isolinux.bin /tmp/isolinux
+     cp $ISOINROOT/isolinux.bin /tmp/isolinux
      echo Done
      
      echo -n "Writing custom image ... "
      trap abort int hup quit err
-     mkisofs -o $ISOOUT -R -allow-leading-dots -J -r -b isolinux/isolinux \
-     -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-     --graft-points $ISOINROOT isolinux/isolinux=/tmp/isolinux boot/plnode.txt=$NODECONFPLAIN > $ISOLOG 2>&1
+     mkisofs -o $ISOOUT -R -allow-leading-dots -J -r -b isolinux \
+     -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
+     --graft-points $ISOINROOT isolinux=/tmp/isolinux plnode.txt=$NODECONFPLAIN > $ISOLOG 2>&1
      trap - int hup quit 
      echo Done
    
