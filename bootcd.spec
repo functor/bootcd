@@ -5,7 +5,7 @@
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
 Distribution: PlanetLab 3.3
-URL: http://cvs.planet-lab.org/cvs/bootcd_v3
+URL: http://cvs.planet-lab.org/cvs/bootcd
 
 Summary: Boot CD
 Name: bootcd
@@ -37,10 +37,10 @@ Central servers.
 %setup -q
 
 %build
-pushd bootcd_v3
+pushd bootcd
 
 # Build the reference image
-./prep.sh
+./prep.sh -r 4
 
 # Build the default configuration (PlanetLab)
 ./build.sh
@@ -53,7 +53,7 @@ popd
 %install
 rm -rf $RPM_BUILD_ROOT
 
-pushd bootcd_v3
+pushd bootcd
 
 # Install the reference image and build scripts
 install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
