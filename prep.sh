@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.1 2006/04/03 19:35:39 mlhuang Exp $
+# $Id: prep.sh,v 1.2 2006/05/15 19:19:55 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -27,7 +27,7 @@ fi
 export PATH
 
 # Release and architecture to install
-releasever=2
+releasever=4
 basearch=i386
 
 # Packages to install

@@ -40,7 +40,7 @@ Central servers.
 pushd bootcd
 
 # Build the reference image
-./prep.sh -r 4
+./prep.sh
 
 # Build the default configuration (PlanetLab)
 ./build.sh
