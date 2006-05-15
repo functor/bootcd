@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.5 2006/03/29 17:08:45 mlhuang Exp $
+# $Id: prep.sh,v 1.1 2006/04/03 19:35:39 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -114,7 +114,7 @@ rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/ve
 for package in "${packagelist[@]}" ; do
     packages="$packages -p $package"
 done
-mkfedora -v -r $releasever -a $basearch $packages $bootcd
+mkfedora -v -r $releasever -a $basearch -k $packages $bootcd
 
 # Disable all services in reference image
 chroot $bootcd sh -c "/sbin/chkconfig --list | awk '{ print \$1 }' | xargs -i /sbin/chkconfig {} off"
