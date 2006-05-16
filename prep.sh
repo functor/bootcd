@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.2 2006/05/15 19:19:55 mlhuang Exp $
+# $Id: prep.sh,v 1.3 2006/05/15 21:13:58 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -41,7 +41,6 @@ kernel
 bzip2
 diffutils
 logrotate
-openssh-clients
 passwd
 rsh
 rsync
@@ -74,6 +73,7 @@ dosfstools
 dos2unix
 bind-utils
 sharutils
+pycurl
 )
 
 usage()
