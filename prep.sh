@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.5 2006/05/18 21:52:51 mlhuang Exp $
+# $Id: prep.sh,v 1.6 2006/05/18 22:18:07 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -152,13 +152,14 @@ pushd $bootcd
 echo "* Removing unnecessary junk"
 
 # Save precious files
-tar --ignore-failed-read -cpf precious.tar "${precious[@]}"
+tar --ignore-failed-read -cpf precious.tar ${precious[*]}
 
 # Remove unnecessary junk
-rm -rf "${junk[@]}"
+rm -rf ${junk[*]}
 
 # Restore precious files
 tar -xpf precious.tar
+rm -f precious.tar
 
 popd
 
