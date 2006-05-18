@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.3 2006/05/15 21:13:58 mlhuang Exp $
+# $Id: prep.sh,v 1.4 2006/05/16 18:31:32 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -76,6 +76,37 @@ sharutils
 pycurl
 )
 
+# Unnecessary junk
+junk=(
+lib/obsolete
+lib/tls
+usr/share/cracklib
+usr/share/emacs
+usr/share/gnupg
+usr/share/i18n
+usr/share/locale
+usr/share/terminfo
+usr/share/zoneinfo
+usr/sbin/build-locale-archive
+usr/sbin/dbconverter-2
+usr/sbin/sasl*
+usr/sbin/tcpslice
+usr/lib/perl*
+usr/lib/locale
+usr/lib/sasl*
+)
+
+precious=(
+usr/share/i18n/locales/en_US
+usr/share/i18n/charmaps/UTF-8.gz
+usr/share/locale/en
+usr/share/terminfo/l/linux
+usr/share/terminfo/v/vt100
+usr/share/terminfo/x/xterm
+usr/share/zoneinfo/UTC
+usr/lib/locale/en_US.utf8
+)
+
 usage()
 {
     echo "Usage: prep.sh [OPTION]..."
@@ -115,6 +146,19 @@ for package in "${packagelist[@]}" ; do
     packages="$packages -p $package"
 done
 mkfedora -v -r $releasever -a $basearch -k $packages $bootcd
+
+pushd $bootcd
+
+# Save precious files
+tar --ignore-failed-read -cpf precious.tar "${precious[@]}"
+
+# Remove unnecessary junk
+rm -rf "${junk[@]}"
+
+# Restore precious files
+tar -xpf precious.tar
+
+popd
 
 # Disable all services in reference image
 chroot $bootcd sh -c "/sbin/chkconfig --list | awk '{ print \$1 }' | xargs -i /sbin/chkconfig {} off"
