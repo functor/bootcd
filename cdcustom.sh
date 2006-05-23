@@ -40,11 +40,11 @@
 # more precisely:
 #  (*) if the .img is present, it is taken as-is,
 #  (*) if not but bootcd/ is present, bootcd.img is refreshed and used
+#  (*) if not but bootcd-custom is present, its content is merged into
+#      the bootcd structure as extracted from the generic CD,
+#      then cpio/compressed.
 # All this is done only once at startup because it typically
 #  takes 40s to recompress bootcd.img
-# TODO
-#  allow local bootcd/ to hold only patched files
-# and get the rest from the CD's bootcd.img
 
 ######## Implementation note
 # in a former release it was possible to perform faster by
@@ -80,6 +80,7 @@ PLNODE=plnode.txt
 # use local bootcd/ or bootcd.img if existing
 BOOTCD_IMAGE=bootcd.img
 BOOTCD_ROOT=bootcd
+BOOTCD_CUSTOM=bootcd-custom
 ## arg-provided generic iso
 ISO_GENERIC=
 # node-dep conf file
@@ -96,7 +97,7 @@ NODE_OVERLAY=
 
 CPIO_OARGS="-oc --quiet"
 CPIO_IARGS="-id --quiet"
-CPIO_PARGS="-pdu"
+CPIO_PARGS="-pdu --quiet"
 
 # export VERBOSE=true for enabling this
 function verbose () {
@@ -118,7 +119,7 @@ function startup () {
 
    # lazy : run only once
    [[ -n "$STARTED_UP" ]] && return
-   message "starting up"
+   message "lazy start up"
 
    ### checking
    [ ! -f "$ISO_GENERIC" ] && error "Could not find template ISO image"
@@ -135,26 +136,52 @@ function startup () {
    message "Duplicating ISO image in $ISO_ROOT"
    (cd $ISO_MOUNT ; find . | cpio $CPIO_PARGS  $ISO_ROOT )
 
-   # use local bootcd.img or bootcd/ if existing
-   message-n "Checking for custom $BOOTCD_ROOT in . "
-   if [ -d $BOOTCD_ROOT -a -f $BOOTCD_IMAGE ] ; then
-     message-n " using $BOOTCD_IMAGE as-is "
-   elif [ -d $BOOTCD_ROOT -a ! -f $BOOTCD_IMAGE ] ; then
-     message-n "yes, making img .. "
-     (cd $BOOTCD_ROOT ; find . | cpio $CPIO_OARGS) | gzip -9 > $BOOTCD_IMAGE
-   fi
-   if [ -f $BOOTCD_IMAGE ] ; then
-     message-n "pushing onto $ISO_ROOT.. "
-     cp $BOOTCD_IMAGE $ISO_ROOT/$BOOTCD_IMAGE
-   fi
-   message-done
-     
+   prepare_bootcd
+
    message "Extracting generic overlay image in $OVERLAY_ROOT"
    gzip -d -c "$ISO_ROOT/$OVERLAY_IMAGE" | ( cd "$OVERLAY_ROOT" ; cpio $CPIO_IARGS )
 
    STARTED_UP=true
 
 }   
+
+### handle custom bootcd
+# see above for the logic in there
+function prepare_bootcd () {
+
+   custom_bootcd=
+
+   if [ -f "$BOOTCD_IMAGE" ] ; then
+     custom_bootcd=true
+     message "Using local $BOOTCD_IMAGE as-is"
+   elif [ -d "$BOOTCD_ROOT" ] ; then
+     custom_bootcd=true
+     message-n "Using local $BOOTCD_ROOT, compressing .. "
+     (cd $BOOTCD_ROOT ; find . | cpio $CPIO_OARGS) | gzip -9 > $BOOTCD_IMAGE
+     message-done
+   elif [ -d "$BOOTCD_CUSTOM" ] ; then
+     custom_bootcd=true
+     message "Found custom partial bootcd $BOOTCD_CUSTOM"
+     message-n "Extracting standard $BOOTCD_ROOT locally .. "
+     mkdir $BOOTCD_ROOT
+     gzip -d -c $ISO_ROOT/$BOOTCD_IMAGE | (cd $BOOTCD_ROOT ; cpio $CPIO_IARGS )
+     message-done
+     message-n "Pushing contents of $BOOTCD_CUSTOM/etc into $BOOTCD_ROOT .. "
+     (cd $BOOTCD_CUSTOM ; tar cf - ./etc ) | ( cd $BOOTCD_ROOT ; tar xf -)
+     message-done
+     message-n "Compressing custom $BOOTCD_ROOT .. "
+     (cd $BOOTCD_ROOT ; find . | cpio $CPIO_OARGS) | gzip -9 > $BOOTCD_IMAGE
+     message-done
+   fi
+
+   if [ -n "$custom_bootcd" ] ; then
+     message "WARNING : You are using a custom bootcd"
+     message-n "Pushing custom $BOOTCD_IMAGE onto $ISO_ROOT.. "
+     cp $BOOTCD_IMAGE $ISO_ROOT/$BOOTCD_IMAGE
+     message-done
+   fi
+     
+}
 
 function node_cleanup () {
    verbose "Cleaning node-dependent cpio image"
