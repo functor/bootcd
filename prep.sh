@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.6 2006/05/18 22:18:07 mlhuang Exp $
+# $Id: prep.sh,v 1.7 2006/05/18 22:30:22 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -73,7 +73,6 @@ dosfstools
 dos2unix
 bind-utils
 sharutils
-pycurl
 )
 
 # Unnecessary junk
