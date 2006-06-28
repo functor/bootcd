@@ -45,7 +45,7 @@
 set -e 
 COMMANDSH=$(basename $0)
 COMMAND=$(basename $0 .sh)
-REVISION="$Id$"
+REVISION="$Id: cdcustom.sh,v 1.7 2006/06/28 14:18:11 thierry Exp $"
 
 function usage () {
 
@@ -297,6 +297,22 @@ function main () {
 
      message "Refreshing isolinux.cfg"
      # Calculate ramdisk size (total uncompressed size of both archives)
+
+     ##########
+     # N.B. Thierry Parmentelat - 2006-06-28
+     # the order in which these images need to be mentioned here for
+     # isolinux involved some - not so educated - guesses
+     # as per syslinux source code in syslinux/runkernel.inc, the
+     # config file is parsed left to right, and indeed it's in that
+     # order that the files are loaded right off the CD
+     # This does not tell however, in case a given file is present in
+     # two different images - and that's the very purpose here - which
+     # one will take precedence over the other
+     # I came up with this order on a trial-and-error basis, I would
+     # have preferred to find it described somewhere
+     # Might be worth checking with other versions of syslinux in case
+     # the custom files would turn out to not be taken into account
+     ##########
 
      if [ -n "$CUSTOM_DIR" ] ; then
        images="bootcd.img custom.img overlay.img"
