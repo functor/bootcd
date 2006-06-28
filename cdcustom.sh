@@ -12,39 +12,7 @@
 # (*) or you run myplc rpm, but need to customize the bootcd image,
 #     because the myplc rpm does not come with the required sources
 
-# given a (generic, node-independant) CD ISO image, and a (set of)
-# node-specific config file(s), this command creates a new almost
-# identical ISO image with the node config file embedded as
-# /usr/boot/plnode.txt in the overlay.img image
-# the output iso images are named after the nodes, and stored in .
-
-######## Logic
-# here is how we do this
-# for efficiency, we do only once:
-#   (*) mount the generic iso
-#   (*) copy it into a temp dir
-#   (*) unzip/unarchive overlay image into another temp dir
-# then for each node, we
-#   (*) insert plnode.txt at the right place
-#   (*) rewrap a gzipped/cpio overlay.img, that we push onto the
-#       copied iso tree
-#   (*) rewrap this into an iso image
-# and cleanup/umount everything 
-
-######## Customizing the BootCD
-# In addition we check (once) for
-#  (*) a file called 'bootcd.img' in the current dir
-#  (*) a directory named 'bootcd/' in the current dir
-# if any of those is present, we use this - presumably custom - stuff to
-# replace original bootcd.img from the CD
-# more precisely:
-#  (*) if the .img is present, it is taken as-is,
-#  (*) if not but bootcd/ is present, bootcd.img is refreshed and used
-#  (*) if not but bootcd-custom is present, its content is merged into
-#      the bootcd structure as extracted from the generic CD,
-#      then cpio/compressed.
-# All this is done only once at startup because it typically
-#  takes 40s to recompress bootcd.img
+# See usage for full details
 
 ######## Implementation note
 # in a former release it was possible to perform faster by
@@ -54,16 +22,58 @@
 # to make things worse we cannot loopback-mount the cpio-gzipped
 # overlay image either, so all this stuff is way more complicated
 # than it used to be.
-# It's still pretty fast, unless recompressing a bootcd.img is required
+#
+# as of 2006 jun 28 we use a third image named custom.img for
+# overriding files in bootcd.img, which let us use bootcd.img intact
+# and thus notably speeds things up 
+#
+######## Logic
+# here is how we do this
+# for efficiency, we do only once:
+#   (*) mount the generic iso
+#   (*) copy it into a temp dir
+#   (*) unzip/unarchive overlay image into another temp dir
+#   (*) if required prepare a custom.img 
+# then for each node, we
+#   (*) insert plnode.txt at the right place if not a default iso
+#   (*) rewrap a gzipped/cpio overlay.img, that we push onto the
+#       copied iso tree
+#   (*) rewrap this into an iso image
+# and cleanup/umount everything 
+
 
 set -e 
+COMMANDSH=$(basename $0)
 COMMAND=$(basename $0 .sh)
+REVISION="$Id$"
 
 function usage () {
 
-   echo "Usage: $0 generic-iso node-config [node-configs]"
-   echo "Creates a node-specific ISO image"
-   echo "with the node-specific config file embedded as /boot/plnode.txt"
+   echo "Usage: $COMMANDSH [-f] [ -c bootcd-dir] generic-iso node-config [.. node-configs]"
+   echo " Creates a node-specific ISO image"
+   echo "*Options"
+   echo -e " -f\r\t\tForces overwrite of output iso images"
+   echo -e " -c bootcd-dir\r\t\tis taken as the root of a set of custom bootcd files"
+   echo -e "\t\ti.e. the files under dir take precedence"
+   echo -e "\t\tover the ones in the generic bootcd"
+   echo "*Arguments"
+   echo -e " generic-iso\r\t\tThe iso image as downloaded from myplc"
+   echo -e "\t\ttypically in /plc/data/var/www/html/download/"
+   echo -e " node-config(s)\r\t\tnode config files (plnode.txt format)"
+   echo -e " default\r\t\tmentioned instead of a plnode.txt file, for generating"
+   echo -e "\t\ta node-independent iso image"
+   echo -e "\t\tThis is defaultbehaviour when no node-config are provided"
+   echo "*Outputs"
+   echo " node-specific iso images are named after nodename[-bootcd-dir].iso"
+   echo " node-independant iso image is named after bootcd-dir.iso"
+   echo "*Examples"
+   echo "# $COMMANDSH -c onelab-bootcd /plc/data/var/www/html/download/onelab-BootCD-3.3.iso"
+   echo "  Creates onelab-bootcd.iso that has no plnode.txt embedded and that uses"
+   echo "  the hw init scripts located under onelab-bootcd/etc/rc.d/init.d/"
+   echo "# $COMMANDSH  /plc/data/var/www/html/download/onelab-BootCD-3.3.iso node1.txt node2.txt"
+   echo "  Creates node1.iso and node2.iso that have plnode.txt embedded for these two nodes"
+   echo "  and the standard bootcd"
+   echo "*Version $REVISION"
    exit 1
 }
 
@@ -74,13 +84,11 @@ function host_name () {
 }
 
 ### Globals
-OVERLAY_IMAGE=overlay.img
 PLNODE_PATH=/usr/boot
 PLNODE=plnode.txt
-# use local bootcd/ or bootcd.img if existing
-BOOTCD_IMAGE=bootcd.img
-BOOTCD_ROOT=bootcd
-BOOTCD_CUSTOM=bootcd-custom
+DEFAULT_TARGET=default
+# defined on the command-line
+CUSTOM_DIR=
 ## arg-provided generic iso
 ISO_GENERIC=
 # node-dep conf file
@@ -99,6 +107,9 @@ CPIO_OARGS="-oc --quiet"
 CPIO_IARGS="-id --quiet"
 CPIO_PARGS="-pdu --quiet"
 
+# export DEBUG=true
+# for enabling debug messages (set -x)
+
 # export VERBOSE=true for enabling this
 function verbose () {
    if [ -n "$VERBOSE" ] ; then
@@ -106,10 +117,10 @@ function verbose () {
    fi
  }
 
-function message () { echo "$COMMAND : $@" ; }
-function message-n () { echo -n "$COMMAND : $@" ; }
+function message () { echo -e "$COMMAND : $@" ; }
+function message-n () { echo -en "$COMMAND : $@" ; }
 function message-done () { echo Done ; }
-function error () { echo "$COMMAND : ERROR $@ - exiting" ; exit 1 ;}
+function error () { echo -e "$COMMAND : ERROR $@ - exiting" ; exit 1 ;}
 
 # lazy startup
 STARTED_UP=
@@ -136,51 +147,30 @@ function startup () {
    message "Duplicating ISO image in $ISO_ROOT"
    (cd $ISO_MOUNT ; find . | cpio $CPIO_PARGS  $ISO_ROOT )
 
-   prepare_bootcd
-
    message "Extracting generic overlay image in $OVERLAY_ROOT"
-   gzip -d -c "$ISO_ROOT/$OVERLAY_IMAGE" | ( cd "$OVERLAY_ROOT" ; cpio $CPIO_IARGS )
+   gzip -d -c "$ISO_ROOT/overlay.img" | ( cd "$OVERLAY_ROOT" ; cpio $CPIO_IARGS )
+
+   if [ -n "$CUSTOM_DIR" ] ; then
+     [ -d "$CUSTOM_DIR" ] || error "Directory $CUSTOM_DIR not found"
+     prepare_custom_image
+   fi
 
    STARTED_UP=true
 
 }   
 
-### handle custom bootcd
-# see above for the logic in there
-function prepare_bootcd () {
+function prepare_custom_image () {
 
-   custom_bootcd=
+   # Cleaning any sequel
+   rm -f custom.img
+   [ -f custom.img ] && error "Could not cleanup custom.img"
+   
+   message "WARNING : You are creating *custom* boot CDs"
 
-   if [ -f "$BOOTCD_IMAGE" ] ; then
-     custom_bootcd=true
-     message "Using local $BOOTCD_IMAGE as-is"
-   elif [ -d "$BOOTCD_ROOT" ] ; then
-     custom_bootcd=true
-     message-n "Using local $BOOTCD_ROOT, compressing .. "
-     (cd $BOOTCD_ROOT ; find . | cpio $CPIO_OARGS) | gzip -9 > $BOOTCD_IMAGE
-     message-done
-   elif [ -d "$BOOTCD_CUSTOM" ] ; then
-     custom_bootcd=true
-     message "Found custom partial bootcd $BOOTCD_CUSTOM"
-     message-n "Extracting standard $BOOTCD_ROOT locally .. "
-     mkdir $BOOTCD_ROOT
-     gzip -d -c $ISO_ROOT/$BOOTCD_IMAGE | (cd $BOOTCD_ROOT ; cpio $CPIO_IARGS )
-     message-done
-     message-n "Pushing contents of $BOOTCD_CUSTOM/etc into $BOOTCD_ROOT .. "
-     (cd $BOOTCD_CUSTOM ; tar cf - ./etc ) | ( cd $BOOTCD_ROOT ; tar xf -)
-     message-done
-     message-n "Compressing custom $BOOTCD_ROOT .. "
-     (cd $BOOTCD_ROOT ; find . | cpio $CPIO_OARGS) | gzip -9 > $BOOTCD_IMAGE
-     message-done
-   fi
-
-   if [ -n "$custom_bootcd" ] ; then
-     message "WARNING : You are using a custom bootcd"
-     message-n "Pushing custom $BOOTCD_IMAGE onto $ISO_ROOT.. "
-     cp $BOOTCD_IMAGE $ISO_ROOT/$BOOTCD_IMAGE
-     message-done
-   fi
-     
+   message-n "Creating $ISO_ROOT/custom.img"
+   (cd $CUSTOM_DIR ; find . | cpio $CPIO_OARGS) | gzip -9 > $ISO_ROOT/custom.img
+   message-done
+   
 }
 
 function node_cleanup () {
@@ -220,60 +210,109 @@ function main () {
 
    [[ -n "$DEBUG" ]] && set -x
 
+   # accept -b as -c, I am used to it now
+   while getopts "c:b:fh" opt ; do
+     case $opt in
+       c|b)
+	 CUSTOM_DIR=$OPTARG ;;
+       f)
+	 FORCE_OUTPUT=true ;;
+       h|*)
+	 usage ;;
+     esac
+   done
+
+   shift $(($OPTIND-1))
+   
    [[ -z "$@" ]] && usage
    ISO_GENERIC=$1; shift
 
-   [[ -z "$@" ]] && usage
+   if [ -z "$@" ] ; then
+     nodes="$DEFAULT_TARGET"
+   else
+     nodes="$@"
+   fi
 
 #  perform that later (lazily)
 #  so that (1st) node-dep checking are done before we bother to unpack
 #   startup
 
-   for NODE_CONFIG in "$@" ; do
+   for NODE_CONFIG in $nodes ; do
 
-     NODENAME=$(host_name $NODE_CONFIG)
-     if [ -z "$NODENAME" ] ; then
-       message "HOST_NAME not found in $NODE_CONFIG - skipped"
-       continue
+     if [ "$NODE_CONFIG" = "$DEFAULT_TARGET" ] ; then
+       NODE_DEP=""
+       # default node without customization does not make sense
+       if [ -z "$CUSTOM_DIR" ] ; then
+	 message "creating a non-custom node-indep. image refused\n(Would have no effect)"
+	 continue
+       else
+	 NODENAME=$DEFAULT_TARGET
+	 NODEOUTPUT=$(basename $CUSTOM_DIR)
+       fi
+     else
+       NODE_DEP=true
+       NODENAME=$(host_name $NODE_CONFIG)
+       if [ -z "$NODENAME" ] ; then
+	 message "HOST_NAME not found in $NODE_CONFIG - skipped"
+	 continue
+       fi
+       if [ -z "$CUSTOM_DIR" ] ; then
+	 NODEOUTPUT=$NODENAME
+       else
+	 NODEOUTPUT=${NODENAME}-$(basename $CUSTOM_DIR)
+       fi
      fi
-   
+
      message "$COMMAND : dealing with node $NODENAME"
 
-     NODE_ISO="$NODENAME.iso"
-     NODE_LOG="$NODENAME.log"
-     NODE_OVERLAY="$NODENAME.img"
+     NODE_ISO="$NODEOUTPUT.iso"
+     NODE_LOG="$NODEOUTPUT.log"
 
      ### checking
      if [ -e  "$NODE_ISO" ] ; then
-       message "$NODE_ISO exists, please remove first - skipped" ; continue
+       if [ -n "$FORCE_OUTPUT" ] ; then
+	 message "$NODE_ISO exists, will overwrite (-f)"
+	 rm $NODE_ISO
+       else
+	 message "$NODE_ISO exists, please remove first - skipped" ; continue
+       fi
      fi
-     if [ ! -f "$NODE_CONFIG" ] ; then
+     if [ -n "$NODE_DEP" -a ! -f "$NODE_CONFIG" ] ; then
        message "Could not find node-specifig config - skipped" ; continue
      fi
      
      startup
 
-     verbose "Pushing node config into overlay image"
-     mkdir -p $OVERLAY_ROOT/$PLNODE_PATH
-     cp "$NODE_CONFIG" $OVERLAY_ROOT/$PLNODE_PATH/$PLNODE
+     if [ -n "$NODE_DEP" ] ; then
+       verbose "Pushing node config into overlay image"
+       mkdir -p $OVERLAY_ROOT/$PLNODE_PATH
+       cp "$NODE_CONFIG" $OVERLAY_ROOT/$PLNODE_PATH/$PLNODE
+     else
+       verbose "Cleaning node config for node-indep. image"
+       rm -f $OVERLAY_ROOT/$PLNODE_PATH/$PLNODE
+     fi
 
      echo "$COMMAND : Creating overlay image for $NODENAME"
-     (cd "$OVERLAY_ROOT" ; find . | cpio $CPIO_OARGS) | gzip -9 > $NODE_OVERLAY
-
-     message-n "Pushing custom overlay image "
-     cp "$NODE_OVERLAY" "$ISO_ROOT/$OVERLAY_IMAGE"
-     message-done
+     (cd "$OVERLAY_ROOT" ; find . | cpio $CPIO_OARGS) | gzip -9 > $ISO_ROOT/overlay.img
 
      message "Refreshing isolinux.cfg"
      # Calculate ramdisk size (total uncompressed size of both archives)
-     ramdisk_size=$(gzip -l $ISO_ROOT/bootcd.img $ISO_ROOT/overlay.img | tail -1 | awk '{ print $2; }') # bytes
+
+     if [ -n "$CUSTOM_DIR" ] ; then
+       images="bootcd.img custom.img overlay.img"
+     else
+       images="bootcd.img overlay.img"
+     fi
+     
+     ramdisk_size=$(cd $ISO_ROOT ; gzip -l $images | tail -1 | awk '{ print $2; }') # bytes
      # keep safe, provision for cpio's block size
      ramdisk_size=$(($ramdisk_size / 1024 + 1)) # kilobytes
 
+     initrd_images=$(echo "$images" | sed -e 's/ /,/g')
      # Write isolinux configuration
      cat > $ISO_ROOT/isolinux.cfg <<EOF
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw
+APPEND ramdisk_size=$ramdisk_size initrd=$initrd_images root=/dev/ram0 rw
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
