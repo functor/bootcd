@@ -1,4 +1,4 @@
-##  $Id: Makefile,v 1.120 2005/04/02 21:48:47 hpa Exp $
+##  $Id: Makefile,v 1.1.1.1 2006/04/03 19:33:23 mlhuang Exp $
 ## -----------------------------------------------------------------------
 ##   
 ##   Copyright 1998-2005 H. Peter Anvin - All Rights Reserved
@@ -67,7 +67,7 @@ BOBJECTS = $(BTARGET) dos/syslinux.com win32/syslinux.exe memdisk/memdisk
 BSUBDIRS = memdisk dos win32
 ITARGET  = copybs.com gethostip mkdiskimage
 IOBJECTS = $(ITARGET) mtools/syslinux unix/syslinux extlinux/extlinux
-ISUBDIRS = mtools unix extlinux sample com32
+ISUBDIRS = mtools unix extlinux sample # com32
 DOCS     = COPYING NEWS README TODO BUGS *.doc sample menu com32
 OTHER    = Makefile bin2c.pl now.pl genhash.pl keywords findpatch.pl \
 	   keytab-lilo.pl version version.pl sys2ansi.pl \
