@@ -129,10 +129,10 @@ EOF
     yum -c yum.conf --installroot=$CD_ROOT -y groupinstall $BOOTCD_YUM_GROUP
 
     # Clean yum cache
-    yum -c yum.conf --installroot=$VROOT -y clean all
+    yum -c yum.conf --installroot=$CD_ROOT -y clean all
 
     # Remove stale RPM locks
-    rm -f $VROOT/var/lib/rpm/__db*
+    rm -f $CD_ROOT/var/lib/rpm/__db*
 
     # Retrieve all of the packagereq declarations in the BootCD group of the yumgroups.xml file
     echo "checking to make sure rpms were installed"
