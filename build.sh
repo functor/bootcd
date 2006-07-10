@@ -128,6 +128,12 @@ EOF
     echo "install boot cd base rpms"
     yum -c yum.conf --installroot=$CD_ROOT -y groupinstall $BOOTCD_YUM_GROUP
 
+    # Clean yum cache
+    yum -c yum.conf --installroot=$VROOT -y clean all
+
+    # Remove stale RPM locks
+    rm -f $VROOT/var/lib/rpm/__db*
+
     # Retrieve all of the packagereq declarations in the BootCD group of the yumgroups.xml file
     echo "checking to make sure rpms were installed"
     packages=$(curl $yumgroups | sed -n -e '/<name>BootCD<\/name>/,/<name>/{ s/.*<packagereq.*>\(.*\)<\/packagereq>/\1/p }')
