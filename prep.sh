@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.7 2006/05/18 22:30:22 mlhuang Exp $
+# $Id: prep.sh,v 1.9 2006/07/20 19:59:51 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -77,6 +77,7 @@ sharutils
 
 # Unnecessary junk
 junk=(
+boot
 lib/obsolete
 lib/tls
 usr/share/cracklib
@@ -93,6 +94,8 @@ usr/sbin/tcpslice
 usr/lib/perl*
 usr/lib/locale
 usr/lib/sasl*
+usr/lib/gconv
+usr/lib/tls
 )
 
 precious=(

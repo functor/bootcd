@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id$
+# $Id: build.sh,v 1.39 2006/07/13 17:51:49 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -64,7 +64,10 @@ BOOTCD_VERSION=$(cat build/version.txt)
 if [ -f /etc/planetlab/plc_config ] ; then
     # Source PLC configuration
     . /etc/planetlab/plc_config
-elif [ -d configurations/$CONFIGURATION ] ; then
+fi
+
+# If PLC configuration is not valid, try a static configuration
+if [ -z "$PLC_BOOT_CA_SSL_CRT" -a -d configurations/$CONFIGURATION ] ; then
     # (Deprecated) Source static configuration
     . configurations/$CONFIGURATION/configuration
     PLC_NAME="PlanetLab"
@@ -76,7 +79,7 @@ elif [ -d configurations/$CONFIGURATION ] ; then
     fi
     PLC_BOOT_HOST=$PRIMARY_SERVER
     PLC_BOOT_SSL_PORT=$PRIMARY_SERVER_PORT
-    PLC_BOOT_SSL_CRT=configurations/$CONFIGURATION/$PRIMARY_SERVER_CERT
+    PLC_BOOT_CA_SSL_CRT=configurations/$CONFIGURATION/$PRIMARY_SERVER_CERT
     PLC_ROOT_GPG_KEY_PUB=configurations/$CONFIGURATION/$PRIMARY_SERVER_GPG
 fi
 
@@ -105,7 +108,7 @@ echo "* Installing boot server configuration files"
 # but never got around to it. Just install the same parameters for
 # both for now.
 for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
-	install -D -m 644 $PLC_BOOT_SSL_CRT $dir/cacert.pem
+	install -D -m 644 $PLC_BOOT_CA_SSL_CRT $dir/cacert.pem
 	install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
 	echo "$PLC_BOOT_HOST" >$dir/boot_server
 	echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
@@ -113,7 +116,7 @@ for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
 done
 
 # (Deprecated) Install old-style boot server configuration files
-install -D -m 644 $PLC_BOOT_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
+install -D -m 644 $PLC_BOOT_CA_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
 echo "$FULL_VERSION_STRING" >$overlay/usr/bootme/ID
 echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER
 echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER_IP
