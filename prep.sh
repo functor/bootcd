@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.8 2006/05/30 19:09:14 mlhuang Exp $
+# $Id: prep.sh,v 1.9 2006/07/20 19:59:51 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -77,7 +77,6 @@ sharutils
 
 # Unnecessary junk
 junk=(
-boot
 lib/obsolete
 lib/tls
 usr/share/cracklib
@@ -205,6 +204,9 @@ for kernel in $bootcd/boot/vmlinuz-* ; do
 	install -D -m 644 $kernel $isofs/kernel
     fi
 done
+
+# Don't need /boot anymore
+rm -rf $bootcd/boot
 
 # initramfs requires that /init be present
 ln -sf /sbin/init $bootcd/init
