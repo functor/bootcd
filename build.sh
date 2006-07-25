@@ -88,7 +88,7 @@ FULL_VERSION_STRING="$PLC_NAME BootCD $BOOTCD_VERSION"
 # Root of the ISO and USB images
 overlay=$(mktemp -d /tmp/overlay.XXXXXX)
 install -d -m 755 $overlay
-trap "rm -rf $overlay" ERR
+trap "rm -rf $overlay" ERR INT
 
 # Create version files
 echo "* Creating version files"
@@ -180,11 +180,11 @@ echo "* Compressing overlay image"
 (cd $overlay && find . | cpio --quiet -c -o) | gzip -9 >$isofs/overlay.img
 
 rm -rf $overlay
-trap - ERR
+trap - ERR INT
 
 # Calculate ramdisk size (total uncompressed size of both archives)
 ramdisk_size=$(gzip -l $isofs/bootcd.img $isofs/overlay.img | tail -1 | awk '{ print $2; }') # bytes
-ramdisk_size=$(($ramdisk_size / 1024)) # kilobytes
+ramdisk_size=$((($ramdisk_size + 1023) / 1024)) # kilobytes
 
 # Write isolinux configuration
 echo "$FULL_VERSION_STRING" >$isofs/pl_version
@@ -218,7 +218,7 @@ mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
 # Mount it
 tmp=$(mktemp -d /tmp/bootcd.XXXXXX)
 mount -o loop "$usb" $tmp
-trap "umount $tmp; rm -rf $tmp" ERR
+trap "umount $tmp; rm -rf $tmp" ERR INT
 
 # Populate it
 echo "* Populating USB image"
@@ -228,7 +228,7 @@ echo "* Populating USB image"
 mv $tmp/isolinux.cfg $tmp/syslinux.cfg
 umount $tmp
 rmdir $tmp
-trap - ERR
+trap - ERR INT
 
 echo "* Making USB image bootable"
 $srcdir/syslinux/unix/syslinux "$usb"
