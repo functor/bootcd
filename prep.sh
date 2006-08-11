@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.9 2006/07/20 19:59:51 mlhuang Exp $
+# $Id: prep.sh,v 1.10 2006/07/24 15:33:07 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -32,7 +32,7 @@ basearch=i386
 
 # Packages to install
 packagelist=(
-dev
+udev
 dhclient
 bash
 coreutils
