@@ -261,7 +261,7 @@ if [[ -n "$NET_DEVICE" ]]; then
 	dev_address=`cat $device/address | tr A-Z a-z`
 	if [ "$device" == "$NET_DEVICE" -o "$dev_address" == "$NET_DEVICE" ]; then
 	    ETH_DEVICE=$device
-	    echo "pl_netinit: found device $ETH_DEVICE with mac address $NET_DEVICE"
+	    echo "pl_netinit: found device $ETH_DEVICE with mac address $dev_address"
 	    break
 	fi
     done
