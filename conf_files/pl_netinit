@@ -235,6 +235,17 @@ if [[ $DEFAULT_NET_CONF -eq 1 ]]; then
     /bin/rm -f $USED_NET_CONF
 fi
 
+# initialize IPMI device
+if [[ -n "$IPMI_ADDRESS" ]] ; then
+    echo -n "pl_netinit: initializing IPMI: "
+    cmd="ipnmac -i $IPMI_ADDRESS"
+    if [[ -n "$IPMI_MAC" ]] ; then
+	cmd="$cmd -m $IPMI_MAC"
+    fi
+    echo $cmd
+    $cmd
+fi
+
 # now, we need to find which device to use (ie, eth0 or eth1). start out
 # by defaulting to eth0, then see if the network configuration file specified
 # either a mac address (in which case we will need to find the device), or
@@ -243,14 +254,14 @@ fi
 if [[ -n "$NET_DEVICE" ]]; then
     # the user specified a mac address we should use. find the network
     # device for it.
-    echo "pl_netinit: looking for a device with mac address $NET_DEVICE"
+    NET_DEVICE=$(tr A-Z a-z <<<$NET_DEVICE)
 
     pushd /sys/class/net
     for device in *; do
-	dev_address=`cat $device/address`
-	if [[ "$dev_address" == "$NET_DEVICE" ]]; then
+	dev_address=`cat $device/address | tr A-Z a-z`
+	if [ "$device" == "$NET_DEVICE" -o "$dev_address" == "$NET_DEVICE" ]; then
 	    ETH_DEVICE=$device
-	    echo "pl_netinit: found device $ETH_DEVICE"
+	    echo "pl_netinit: found device $ETH_DEVICE with mac address $NET_DEVICE"
 	    break
 	fi
     done
