@@ -3,7 +3,8 @@
 # Valid environment variables to appear in a planetlab config file
 TAGS='IP_METHOD HOST_NAME DOMAIN_NAME PROXY_SERVER
       IP_ADDRESS IP_GATEWAY IP_NETMASK IP_NETADDR IP_BROADCASTADDR 
-      IP_DNS1 IP_DNS2 NET_DEVICE NODE_KEY NODE_ID'
+      IP_DNS1 IP_DNS2 NET_DEVICE NODE_KEY NODE_ID
+      IPMI_ADDRESS IPMI_MAC'
 
 # Valid characters that variable can be set to
 CHARS='[:alnum:]\.: _-'
