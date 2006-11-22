@@ -378,10 +378,16 @@ popd
 # update etc/inittab to start with pl_rsysinit
 sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
 
+# modify inittab to have a serial console
+echo "T0:23:respawn:/sbin/agetty -L ttyS0 9600 vt100" >> etc/inittab
+# and let root log in
+echo "ttyS0" >> etc/securetty
+
 #calculate the size of /tmp based on the size of /etc & /var + 8MB slack
 etcsize=$(du -s ./etc | awk '{ print $1 }')
 varsize=$(du -s ./etc | awk '{ print $1 }')
 let msize=($vsize+$esize+8192)/1024
+
 
 # generate pl_rsysinit
 cat > etc/rc.d/init.d/pl_rsysinit <<EOF
@@ -530,14 +536,14 @@ cp ${BUILDTMP}/cramfs.img $tmp/
 
 # Use syslinux instead of isolinux to make the image bootable
 cat >$tmp/syslinux.cfg <<EOF
-SERIAL 0 115200
+SERIAL 0 9600
 PROMPT 0
 TIMEOUT 120
 DISPLAY pl_version
 DEFAULT serial
 LABEL serial
 	KERNEL kernel
-	APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro  console=ttyS0,115200n8
+	APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro  console=ttyS0,9600n8
 EOF
 umount $tmp
 rmdir $tmp
