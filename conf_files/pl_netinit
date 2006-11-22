@@ -125,11 +125,11 @@ find_node_config()
 
     echo "pl_netinit: looking for node configuration file on flash based devices"
 
-    # make the sd* expansion fail to an empty string if there are no sd
+    # make the sd* hd* expansion fail to an empty string if there are no sd
     # devices
     shopt -s nullglob
 
-    for device in /sys/block/sd*; do
+    for device in /sys/block/[hs]d*; do
 	removable=`cat $device/removable`
 	if [[ $removable -ne 1 ]]; then
 	    continue
