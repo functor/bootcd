@@ -6,7 +6,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: newbuild.sh,v 1.1 2006/12/02 04:55:53 mlhuang Exp $
+# $Id: newbuild.sh,v 1.2 2006/12/04 20:07:18 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -126,7 +126,7 @@ EOF
 
 # Pack miscellaneous files into a compressed archive
 echo "* Compressing miscellaneous files image"
-(cd $misc && find . | cpio --quiet -c -o) | \
+(cd $misc && find . | cpio --quiet -H newc -o) | \
     python ../filesystem/cpiochown.py --owner root:root - | \
     gzip -9 >$isofs/misc.img
 
