@@ -6,7 +6,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.42 2006/11/22 20:40:48 mef Exp $
+# $Id: newbuild.sh,v 1.1 2006/12/02 04:55:53 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -20,6 +20,15 @@ else
     echo "Could not find /etc/planetlab/plc_config."
     echo "This file defines the configuration of your PlanetLab installation."
     exit 1
+fi
+
+# This support for backwards compatibility can be taken out in the
+# future. RC1 based MyPLCs set $PLC_BOOT_SSL_CRT in the plc_config
+# file, but >=RC2 based bootcd assumes that $PLC_BOOT_CA_SSL_CRT is
+# set.
+if [ -z "$PLC_BOOT_CA_SSL_CRT" -a ! -z "$PLC_BOOT_SSL_CRT" ] ; then
+    PLC_BOOT_CA_SSL_CRT=$PLC_BOOT_SSL_CRT
+    PLC_API_CA_SSL_CRT=$PLC_API_SSL_CRT
 fi
 
 output="$PLC_NAME-BootCD-$BOOTCD_VERSION.iso"
