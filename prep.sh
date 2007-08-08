@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.10 2006/07/24 15:33:07 mlhuang Exp $
+# $Id: prep.sh,v 1.12 2006/08/21 20:24:09 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -32,7 +32,7 @@ basearch=i386
 
 # Packages to install
 packagelist=(
-dev
+udev
 dhclient
 bash
 coreutils
@@ -73,6 +73,7 @@ dosfstools
 dos2unix
 bind-utils
 sharutils
+vconfig
 )
 
 # Unnecessary junk
@@ -166,6 +167,10 @@ popd
 
 # Disable all services in reference image
 chroot $bootcd sh -c "/sbin/chkconfig --list | awk '{ print \$1 }' | xargs -i /sbin/chkconfig {} off"
+
+# Install ipnmac (for SuperMicro machines with IPMI)
+echo "* Installing IPMI utilities"
+install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
 
 # Install configuration files
 echo "* Installing configuration files"

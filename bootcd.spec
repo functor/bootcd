@@ -58,7 +58,7 @@ pushd bootcd
 # Install the reference image and build scripts
 install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
 install -m 755 build.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
-find \
+tar cpf - \
     build/isofs/bootcd.img \
     build/isofs/isolinux.bin \
     build/isofs/kernel \
@@ -66,7 +66,7 @@ find \
     build/version.txt \
     configurations \
     syslinux/unix/syslinux | \
-    cpio -p -d -u $RPM_BUILD_ROOT/%{_datadir}/%{name}/
+    tar -C $RPM_BUILD_ROOT/%{_datadir}/%{name}/ -xpf -
 
 # Install the default images in the download/ directory
 install -d -m 755 $RPM_BUILD_ROOT/var/www/html/download
@@ -81,12 +81,12 @@ rm -rf $RPM_BUILD_ROOT
 # If run under sudo
 if [ -n "$SUDO_USER" ] ; then
     # Allow user to delete the build directory
-    chown -R $SUDO_USER .
+    chown -h -R $SUDO_USER .
     # Some temporary cdroot files like /var/empty/sshd and
     # /usr/bin/sudo get created with non-readable permissions.
     find . -not -perm +0600 -exec chmod u+rw {} \;
     # Allow user to delete the built RPM(s)
-    chown -R $SUDO_USER %{_rpmdir}/%{_arch}
+    chown -h -R $SUDO_USER %{_rpmdir}/%{_arch}
 fi
 
 %post planetlab

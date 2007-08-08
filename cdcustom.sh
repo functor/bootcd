@@ -45,7 +45,7 @@
 set -e 
 COMMANDSH=$(basename $0)
 COMMAND=$(basename $0 .sh)
-REVISION="$Id: cdcustom.sh,v 1.7 2006/06/28 14:18:11 thierry Exp $"
+REVISION="$Id: cdcustom.sh,v 1.8 2006/06/28 15:01:01 thierry Exp $"
 
 function usage () {
 
@@ -227,7 +227,7 @@ function main () {
    [[ -z "$@" ]] && usage
    ISO_GENERIC=$1; shift
 
-   if [ -z "$@" ] ; then
+   if [[ -z "$@" ]] ; then
      nodes="$DEFAULT_TARGET"
    else
      nodes="$@"
