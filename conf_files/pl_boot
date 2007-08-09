@@ -1,0 +1,177 @@
+#!/bin/sh
+
+# Run gpg once to create default options
+GNUPGHOME=/root
+export GNUPGHOME
+/usr/bin/gpg --yes 2>/dev/null </dev/null
+
+# if this file is present, cancel the boot (exit this script)
+CANCEL_BOOT_FLAG=/tmp/CANCEL_BOOT
+
+# how many times to fail in attempting to contact primary server
+# before falling back to original. if the backup fails this many times
+# too, then the process is repeated started with the primary server
+ATTEMPTS_BEFORE_BACKUP=3
+
+# where all the configuration files for contacting
+# the boot server are stored
+BOOT_DIR=/usr/boot/
+
+# get the server we are going to be contacting
+BOOT_SERVER=`cat $BOOT_DIR/boot_server`
+BOOT_SERVER_PORT=`cat $BOOT_DIR/boot_server_port`
+
+# the file to request from the boot server
+BOOT_SERVER_PATH=`cat $BOOT_DIR/boot_server_path`
+
+# location of the cacert for this boot server
+BOOT_SERVER_CACERT=$BOOT_DIR/cacert.pem
+
+# location of the gpg key ring to verify scripts
+BOOT_SERVER_GPG_KEYRING=$BOOT_DIR/pubring.gpg
+
+# get the backup server we are going to be contacting
+BACKUP_BOOT_SERVER=`cat $BOOT_DIR/backup/boot_server`
+BACKUP_BOOT_SERVER_PORT=`cat $BOOT_DIR/backup/boot_server_port`
+
+# the file to request from the backup boot server
+BACKUP_BOOT_SERVER_PATH=`cat $BOOT_DIR/backup/boot_server_path`
+
+# location of the cacert for the backup boot server
+BACKUP_BOOT_SERVER_CACERT=$BOOT_DIR/backup/cacert.pem
+
+# location of the gpg key ring for backup server to verify scripts
+BACKUP_BOOT_SERVER_GPG_KEYRING=$BOOT_DIR/backup/pubring.gpg
+
+# location of a file containing this boot cd version
+BOOT_VERSION_FILE=/pl_version
+
+# the locations of the downloaded scripts
+UNVERIFIED_SCRIPT=/tmp/bootscript.gpg
+VERIFIED_SCRIPT=/tmp/bootscript
+
+
+# --------------------------
+
+
+# now, contact the boot server, run the script, and do it over again.
+contact_count=0
+
+# set to one when we are trying to contact backup server
+on_backup_server=0
+
+# start out contacting the primary servers
+CONNECT_BOOT_SERVER=$BOOT_SERVER
+CONNECT_BOOT_SERVER_PORT=$BOOT_SERVER_PORT
+CONNECT_BOOT_SERVER_PATH=$BOOT_SERVER_PATH
+CONNECT_BOOT_SERVER_GPG_KEYRING=$BOOT_SERVER_GPG_KEYRING
+CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
+
+while : ; do
+
+    if [[ -f $CANCEL_BOOT_FLAG ]]; then
+	echo "pl_boot: got request to cancel boot, exiting"
+	exit 0
+    fi
+    
+    if [[ $contact_count -ge $ATTEMPTS_BEFORE_BACKUP ]]; then
+
+	contact_count=0
+
+	if [[ $on_backup_server == 1 ]]; then
+	    echo "pl_boot: failed to contact backup server, trying primary."
+
+	    on_backup_server=0
+
+	    CONNECT_BOOT_SERVER=$BOOT_SERVER
+	    CONNECT_BOOT_SERVER_PORT=$BOOT_SERVER_PORT
+	    CONNECT_BOOT_SERVER_PATH=$BOOT_SERVER_PATH
+	    CONNECT_BOOT_SERVER_GPG_KEYRING=$BOOT_SERVER_GPG_KEYRING
+	    CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
+	else
+	    echo "pl_boot: failed to contact primary server, trying backup."
+
+	    on_backup_server=1
+
+	    CONNECT_BOOT_SERVER=$BACKUP_BOOT_SERVER
+	    CONNECT_BOOT_SERVER_PORT=$BACKUP_BOOT_SERVER_PORT
+	    CONNECT_BOOT_SERVER_PATH=$BACKUP_BOOT_SERVER_PATH
+	    CONNECT_BOOT_SERVER_GPG_KEYRING=$BACKUP_BOOT_SERVER_GPG_KEYRING
+	    CONNECT_BOOT_SERVER_CACERT=$BACKUP_BOOT_SERVER_CACERT
+	fi
+    fi
+
+    if [[ $contact_count != 0 ]]; then
+
+	if [[ $on_backup_server == 1 ]]; then
+	    echo "pl_boot: attempting to fetch script from backup server in 30s"
+	else
+	    echo "pl_boot: attempting to fetch script from primary server in 30s"
+	fi
+	/bin/sleep 30
+    fi
+
+    # assemble the curl transaction
+    CURL_CMD="/usr/bin/curl \
+        --connect-timeout 60 \
+        --max-time 600 \
+        --form version=<$BOOT_VERSION_FILE \
+        --form cmdline=</proc/cmdline \
+        --form uptime=</proc/uptime \
+        --form ifconfig=</tmp/ifconfig \
+        --form nonce=</tmp/nonce \
+        --location \
+        --output $UNVERIFIED_SCRIPT \
+        --sslv3  \
+        --silent \
+        --show-error \
+        --fail \
+        --stderr /tmp/curl_errors \
+        --cacert $CONNECT_BOOT_SERVER_CACERT \
+   https://$CONNECT_BOOT_SERVER:$CONNECT_BOOT_SERVER_PORT/$CONNECT_BOOT_SERVER_PATH"
+
+    # assemble the gpg command line
+    GPG_CMD="/usr/bin/gpg \
+        --no-default-keyring \
+        --keyring $CONNECT_BOOT_SERVER_GPG_KEYRING \
+        --output $VERIFIED_SCRIPT \
+        --always-trust \
+        --decrypt $UNVERIFIED_SCRIPT"
+
+    echo "pl_boot: generating new nonce"
+    /usr/bin/head --bytes=32 /dev/urandom | \
+	/usr/bin/od -tx1 -An --width=32 | \
+	/bin/sed 's/ //g' > /tmp/nonce
+
+    echo "pl_boot: fetching script from boot server $CONNECT_BOOT_SERVER"
+    ((contact_count++))
+    rm -f $UNVERIFIED_SCRIPT
+    $CURL_CMD
+    curl_err=$?
+    if [ $curl_err -ne 0 ]; then
+	echo "pl_boot: curl request failed with error $curl_err:"
+	cat /tmp/curl_errors
+	echo
+	continue
+    fi 
+
+    echo "pl_boot: verifying downloaded script"
+    rm -f $VERIFIED_SCRIPT
+    $GPG_CMD 2> /tmp/gpg_errors
+    if [ $? -ne 0 ]; then
+	echo "pl_boot: failed to verify file:"
+	cat /tmp/gpg_errors
+	echo
+	continue
+    fi
+    echo "pl_boot: decrypted and verified script succesfully"
+
+    echo "pl_boot: handing control to download script"
+    rm -f $UNVERIFIED_SCRIPT
+    chmod +x $VERIFIED_SCRIPT
+    $VERIFIED_SCRIPT
+    
+    echo "pl_boot: downloaded script has returned"
+done
+
+echo "pl_boot: automatic boot process canceled by user"

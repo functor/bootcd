@@ -1,0 +1,351 @@
+#!/bin/sh
+
+# the name of the floppy based network configuration
+# files (checked first). the name planet.cnf is kept
+# for backward compatibility with old nodes, and only
+# the floppy disk is searched for files with this name.
+# new files are named plnode.txt and can be located on
+# a floppy or usb device or on the cdrom
+OLD_NODE_CONF_NAME=planet.cnf
+NEW_NODE_CONF_NAME=plnode.txt
+
+# one location of cd-based network configuration file
+# (checked if floppy conf file missing and usb
+# configuration file is missing)
+CD_NET_CONF_BOOT=/usr/boot/$NEW_NODE_CONF_NAME
+
+# the other location of cd-based network configuration file
+CD_NET_CONF_ROOT=/usr/$NEW_NODE_CONF_NAME
+
+# if all other network configuration file sources 
+# don't exist, fall back to this one (always on the cd)
+FALLBACK_NET_CONF=/usr/boot/default-net.cnf
+
+# a temporary place to hold the old configuration file
+# off of the floppy disk if we find it (so we don't have
+# to remount the floppy later)
+TMP_OLD_FLOPPY_CONF_FILE=/tmp/oldfloppy_planet.cnf
+
+# once a configuration file is found, save it in /tmp
+# (may be used later by boot scripts)
+USED_NET_CONF=/tmp/planet.cnf
+
+# default device to use for contacting PLC if not specified
+# in the configuration file
+DEFAULT_NET_DEV=eth0
+
+# where to store the temporary dhclient conf file
+DHCLIENT_CONF_FILE=/tmp/dhclient.conf
+
+# which fs types we support finding node configuration files on
+# (will be based as a -t parameter to mount)
+NODE_CONF_DEVICE_FS_TYPES="msdos,ext2"
+
+# a temporary place to mount devices that might contain configuration
+# files on
+CONF_DEVICE_MOUNT_POINT=/mnt/confdevice
+/bin/mkdir -p $CONF_DEVICE_MOUNT_POINT
+
+# for some backwards compatibility, save the ifconfig <device>
+# output to this file after everything is online
+IFCONFIG_OUTPUT=/tmp/ifconfig
+
+# set to 1 if the default network configuration was loaded off the cd
+# (no other configuration file found)
+DEFAULT_NET_CONF=0
+
+
+net_init_failed()
+{
+    echo
+    echo "pl_netinit: network initialization failed,"
+    echo "pl_netinit: shutting down machine in two hours"
+    /bin/sleep 2h
+    /sbin/shutdown -h now
+    exit 1
+}
+
+# Function for checking the IP address to see if its sensible.
+check_ip()
+{
+    case "$*" in
+        "" | *[!0-9.]* | *[!0-9]) return 1 ;;
+    esac
+    local IFS=.
+    set -- $*
+    [ $# -eq 4 ] &&
+    [ ${1:-666} -le 255 ] && [ ${2:-666} -le 255 ] &&
+    [ ${3:-666} -le 255 ] && [ ${4:-666} -le 255 ]
+}
+
+# find and parse a node network configuration file. return 0 if not found,
+# return 1 if found and parsed. if this is the case, DEFAULT_NET_CONF will 
+# be set to 1. For any found configuration file, $USED_NET_CONF will
+# contain the validated contents
+find_node_config()
+{
+    /bin/rm -f $TMP_OLD_FLOPPY_CONF_FILE 2>&1 > /dev/null
+
+    echo "pl_netinit: looking for node configuration file on floppy"
+    
+    /bin/mount -o ro -t $NODE_CONF_DEVICE_FS_TYPES /dev/fd0 \
+	$CONF_DEVICE_MOUNT_POINT 2>&1 > /dev/null
+    if [[ $? -eq 0 ]]; then
+
+        # 1. check for new named file first on the floppy disk
+	if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
+	    echo "pl_netinit: found node configuration file plnode.txt, using"
+
+	    conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+	    /etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+	    /bin/umount $CONF_DEVICE_MOUNT_POINT
+	    return 1
+
+        # since we have the floppy mounted already, see if an old file
+        # exists there so we don't have to remount the floppy when we need
+        # to check for an old file on it (later in the order). if it does
+        # just copy it off to a special location
+	elif [ -r "$CONF_DEVICE_MOUNT_POINT/$OLD_NODE_CONF_NAME" ]; then
+	    conf_file="$CONF_DEVICE_MOUNT_POINT/$OLD_NODE_CONF_NAME"
+	    /bin/cp -f $conf_file $TMP_OLD_FLOPPY_CONF_FILE
+	    echo "pl_netinit: found old named configuration file, checking later."
+	else
+	    echo "pl_netinit: floppy mounted, but no configuration file."
+	fi
+
+	/bin/umount $CONF_DEVICE_MOUNT_POINT
+    else
+	echo "pl_netinit: no floppy could be mounted, continuing search."
+    fi
+
+    # 2. check for a new named file on removable flash devices (those 
+    # that start with sd*, because usb_storage emulates scsi devices).
+    # to prevent checking normal scsi disks, also make sure
+    # /sys/block/<dev>/removable is set to 1
+
+    echo "pl_netinit: looking for node configuration file on flash based devices"
+
+    # make the sd* hd* expansion fail to an empty string if there are no sd
+    # devices
+    shopt -s nullglob
+
+    for device in /sys/block/[hs]d*; do
+	removable=`cat $device/removable`
+	if [[ $removable -ne 1 ]]; then
+	    continue
+	fi
+
+	partitions=$(/bin/awk "\$4 ~ /`basename $device`[0-9]*/ { print \$4 }" /proc/partitions)
+	for partition in $partitions ; do
+	    check_dev=/dev/$partition
+
+	    echo "pl_netinit: looking for node configuration file on device $check_dev"
+	    /bin/mount -o ro -t $NODE_CONF_DEVICE_FS_TYPES $check_dev \
+		$CONF_DEVICE_MOUNT_POINT 2>&1 > /dev/null
+	    if [[ $? -eq 0 ]]; then
+		if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
+		    echo "pl_netinit: found node configuration file plnode.txt, using"
+
+		    conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+		    /etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+		    echo "pl_netinit: found configuration"
+		    /bin/umount $CONF_DEVICE_MOUNT_POINT
+		    return 1
+		fi
+		
+		echo "pl_netinit: not found"
+
+		/bin/umount $CONF_DEVICE_MOUNT_POINT
+	    fi
+	done
+    done
+
+    # normal filename expansion setting
+    shopt -u nullglob
+
+    # 3. see if there is an old file on the floppy disk. if there was,
+    # the file $TMP_OLD_FLOPPY_CONF_FILE will be readable.
+    if [ -r "$TMP_OLD_FLOPPY_CONF_FILE" ]; then
+	echo "pl_netinit: found node configuration file planet.cnf, using"
+
+	conf_file=$TMP_OLD_FLOPPY_CONF_FILE
+	/etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
+	return 1
+    fi
+
+
+    # 4. check for plnode.txt on the cd at /usr/boot
+    echo "pl_netinit: looking for network configuration on cd in /usr/boot"
+    if [ -r "$CD_NET_CONF_BOOT" ]; then
+	
+	echo "pl_netinit: found cd configuration file, using"
+	/etc/init.d/pl_validateconf < $CD_NET_CONF_BOOT > $USED_NET_CONF
+	return 1
+    fi
+    
+
+    # 5. check for plnode.txt on the cd at /usr
+    echo "pl_netinit: looking for network configuration on cd in /usr"
+    if [ -r "$CD_NET_CONF_ROOT" ]; then
+	
+	echo "pl_netinit: found cd configuration file, using"
+	/etc/init.d/pl_validateconf < $CD_NET_CONF_ROOT > $USED_NET_CONF
+	return 1
+    fi
+
+
+    # 6. no node configuration file could be found, fall back to
+    # builtin default. this can't be used to install a machine, but
+    # will at least let it download and run the boot manager, which
+    # can inform the users appropriately.
+    echo "pl_netinit: using default network configuration"
+    if [ -r "$FALLBACK_NET_CONF" ]; then
+	echo "pl_netinit: found cd default configuration file, using"
+	/etc/init.d/pl_validateconf < $FALLBACK_NET_CONF > $USED_NET_CONF
+	DEFAULT_NET_CONF=1
+	return 1
+    fi
+
+    return 0
+}
+
+
+echo "pl_netinit: bringing loopback network device up"
+/sbin/ifconfig lo 127.0.0.1 up
+
+find_node_config
+if [ $? -eq 0 ]; then
+    # no network configuration file found. this should not happen as the
+    # default cd image has a backup one. halt.
+    echo "pl_netinit: unable to find even a default network configuration"
+    echo "pl_netinit: file, this cd may be corrupt."
+    net_init_failed
+fi
+
+# load the configuration file. if it was a default one (not user specified),
+# then remove the saved copy from /tmp, but continue on. since a network 
+# configuration file is required and boot scripts only know about this location
+# they will fail (as they should) - but the network will be up if dhcp is
+# available
+
+echo "pl_netinit: loading network configuration"
+. $USED_NET_CONF
+
+if [[ $DEFAULT_NET_CONF -eq 1 ]]; then
+    /bin/rm -f $USED_NET_CONF
+fi
+
+# initialize IPMI device
+if [[ -n "$IPMI_ADDRESS" ]] ; then
+    echo -n "pl_netinit: initializing IPMI: "
+    cmd="ipnmac -i $IPMI_ADDRESS"
+    if [[ -n "$IPMI_MAC" ]] ; then
+	cmd="$cmd -m $IPMI_MAC"
+    fi
+    echo $cmd
+    $cmd
+fi
+
+# now, we need to find which device to use (ie, eth0 or eth1). start out
+# by defaulting to eth0, then see if the network configuration file specified
+# either a mac address (in which case we will need to find the device), or
+# the device itself
+
+if [[ -n "$NET_DEVICE" ]]; then
+    # the user specified a mac address we should use. find the network
+    # device for it.
+    NET_DEVICE=$(tr A-Z a-z <<<$NET_DEVICE)
+
+    pushd /sys/class/net
+    for device in *; do
+	dev_address=`cat $device/address | tr A-Z a-z`
+	if [ "$device" == "$NET_DEVICE" -o "$dev_address" == "$NET_DEVICE" ]; then
+	    ETH_DEVICE=$device
+	    echo "pl_netinit: found device $ETH_DEVICE with mac address $dev_address"
+	    break
+	fi
+    done
+    popd
+else
+    ETH_DEVICE=$DEFAULT_NET_DEV
+    echo "pl_netinit: using default device $ETH_DEVICE"
+
+fi
+
+
+# if we couldn't find a device (would happen if NET_DEVICE was specified
+# but we couldn't find a device for that addresS), then abort the rest
+# of the startup
+
+if [[ -z "$ETH_DEVICE" ]]; then
+    echo "pl_netinit: unable to find a usable device, check to make sure"
+    echo "pl_netinit: the NET_DEVICE field in the configuration file"
+    echo "pl_netinit: cooresponds with a network adapter on this system"
+    net_init_failed
+fi
+
+
+# actually check to make sure ifconfig <device> succeeds
+/sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "pl_netinit: device $ETH_DEVICE does not exist, most likely"
+    echo "pl_netinit: this cd does not have hardware support for your"
+    echo "pl_netinit: network adapter. please send the following lines"
+    echo "pl_netinit: to PlanetLab Support: support@planet-lab.org"
+    echo "pl_netinit: for further assistance"
+    echo
+    /sbin/lspci -n | /bin/grep "Class 0200"    
+    echo
+
+    net_init_failed
+fi
+
+if [[ "$IP_METHOD" == "dhcp" ]]; then
+    echo "pl_netinit: attempting to bring up device with dhcp"
+
+    # setup a dhclient conf file for this device (used to send
+    # our hostname to the dhcp server)
+    echo "interface \"$ETH_DEVICE\" {" > $DHCLIENT_CONF_FILE
+    echo "send host-name \"$HOST_NAME.$DOMAIN_NAME\";" >> $DHCLIENT_CONF_FILE
+    echo "}" >> $DHCLIENT_CONF_FILE
+
+    # touch the redhat net device configuration file so 
+    # dhclient doesn't complain
+    /bin/touch /etc/sysconfig/network-scripts/ifcfg-$ETH_DEVICE
+
+    configured=0
+    while [[ $configured -eq 0 ]]; do
+	/sbin/dhclient -1 -cf $DHCLIENT_CONF_FILE $ETH_DEVICE 
+	if [[ $? -ne 0 ]]; then
+	    echo "pl_netinit: dhcp failed, retrying in 2 minutes"
+	    /bin/sleep 120
+	else
+	    echo "pl_netinit: dhcp succeeded"
+	    configured=1
+	    break
+	fi
+    done
+else
+    echo "pl_netinit: configuring device statically"
+
+    /sbin/ifconfig $ETH_DEVICE $IP_ADDRESS broadcast $IP_BROADCASTADDR \
+	netmask $IP_NETMASK
+    /sbin/route add default gw $IP_GATEWAY dev $ETH_DEVICE
+    /bin/hostname "$HOST_NAME.$DOMAIN_NAME"
+
+    if [[ -z "$IP_DNS1" ]]; then
+	echo "pl_netinit: no dns server specified, cannot continue."
+	net_init_failed
+    fi
+
+    echo "nameserver $IP_DNS1" > /etc/resolv.conf
+    if [[ -n "$IP_DNS2" ]]; then
+	echo "nameserver $IP_DNS2" >> /etc/resolv.conf
+    fi
+fi
+
+# for backwards compatibility
+/sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT
+
+echo "pl_netinit: network online"
+

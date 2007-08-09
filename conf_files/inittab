@@ -1,0 +1,17 @@
+id:2:initdefault:
+si:S:sysinit:/etc/init.d/pl_sysinit
+l2:2:bootwait:/etc/init.d/pl_boot
+
+ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+
+u6:6:wait:/bin/umount -a -r 
+r6:6:wait:/sbin/shutdown -r -n now
+u0:0:wait:/bin/umount -a -r 
+h0:0:wait:/sbin/shutdown -h -n now
+
+1:2345:respawn:/sbin/mingetty --noclear tty1
+2:2345:respawn:/sbin/mingetty --noclear tty2
+3:2345:respawn:/sbin/mingetty --noclear tty3
+4:2345:respawn:/sbin/mingetty --noclear tty4
+5:2345:respawn:/sbin/mingetty --noclear tty5
+6:2345:respawn:/sbin/mingetty --noclear tty6
