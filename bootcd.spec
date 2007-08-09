@@ -64,6 +64,7 @@ tar cpf - \
     build/isofs/kernel \
     build/passwd \
     build/version.txt \
+	bootcustom.sh \
     configurations \
     syslinux/unix/syslinux | \
     tar -C $RPM_BUILD_ROOT/%{_datadir}/%{name}/ -xpf -
