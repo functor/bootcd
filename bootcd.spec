@@ -40,7 +40,7 @@ Central servers.
 pushd bootcd
 
 # Build the reference image
-./prep.sh -r $([ -f "/etc/fedora-release" ] && awk ' { print $4 } ' /etc/fedora-release || echo 4)
+./prep.sh -a $(uname -i) -r $([ -f "/etc/fedora-release" ] && awk ' { print $4 } ' /etc/fedora-release || echo 4)
 
 # Build the default configuration (PlanetLab)
 ./build.sh
