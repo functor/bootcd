@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.40 2006/07/25 23:51:39 mlhuang Exp $
+# $Id: build.sh,v 1.42 2006/11/22 20:40:48 mef Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -18,6 +18,8 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
 ALL=0
+# Leave 4 MB of free space
+FREE_SPACE=4096
 
 usage()
 {
@@ -253,8 +255,7 @@ mkisofs -o "$iso" \
 echo -n "* Creating USB image... "
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION.usb"
 
-# Leave 1 MB of free space on the VFAT filesystem
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
+mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
 # Mount it
 tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
@@ -286,8 +287,7 @@ $srcdir/syslinux/unix/syslinux "$usb"
 echo -n "* Creating USB image... "
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-serial.usb"
 
-# Leave 1 MB of free space on the VFAT filesystem
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
+mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
 # Mount it
 tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
@@ -427,7 +427,6 @@ chown -R 0.0 $cramfs
 #create the cramfs image
 echo "* Creating cramfs image"
 mkfs.cramfs $tmp/ $cramfs
-# Leave 1 MB of free space on the VFAT filesystem
 cramfs_size=$(($(du -sk $cramfs | awk '{ print $1; }')))
 mv $cramfs ${BUILDTMP}/cramfs.img
 rm -rf $tmp
@@ -482,8 +481,7 @@ trap - ERR INT
 echo "* Creating USB CRAMFS based image"
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs.usb"
 
-# leave 1MB of space on the USB VFAT
-let vfat_size=${cramfs_size}+2048
+let vfat_size=${cramfs_size}+$FREE_SPACE
 
 # Make VFAT filesystem for USB
 mkfs.vfat -C "$usb" $vfat_size
@@ -518,8 +516,7 @@ $srcdir/syslinux/unix/syslinux "$usb"
 echo "* Creating USB CRAMFS based image w/ serial line support"
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs-serial.usb"
 
-# leave 4MB of space on the USB VFAT
-let vfat_size=${cramfs_size}+2048
+let vfat_size=${cramfs_size}+$FREE_SPACE
 
 # Make VFAT filesystem for USB
 mkfs.vfat -C "$usb" $vfat_size

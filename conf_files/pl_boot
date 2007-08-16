@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /tmp/planet.cnf
+
 # Run gpg once to create default options
 GNUPGHOME=/root
 export GNUPGHOME
@@ -152,7 +154,21 @@ while : ; do
 	echo "pl_boot: curl request failed with error $curl_err:"
 	cat /tmp/curl_errors
 	echo
-	continue
+	if [ -n "$DISCONNECTED_OPERATION" ]; then
+	    mkdir /tmp/boot-media
+	    mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
+	    cp /tmp/boot-media/bootscript.gpg $UNVERIFIED_SCRIPT
+	    umount /tmp/boot-media
+	    rmdir /tmp/boot-media
+	else
+	    continue
+	fi
+    elif [ -n "$DISCONNECTED_OPERATION" ]; then
+	mkdir /tmp/boot-media
+	mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
+	cp $UNVERIFIED_SCRIPT /tmp/boot-media
+	umount /tmp/boot-media
+	rmdir /tmp/boot-media
     fi 
 
     echo "pl_boot: verifying downloaded script"

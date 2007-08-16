@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.12 2006/08/21 20:24:09 mlhuang Exp $
+# $Id: prep.sh,v 1.13 2006/08/21 20:45:23 mlhuang Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -32,6 +32,7 @@ basearch=i386
 
 # Packages to install
 packagelist=(
+filesystem
 udev
 dhclient
 bash
@@ -74,6 +75,7 @@ dos2unix
 bind-utils
 sharutils
 vconfig
+ntp
 )
 
 # Unnecessary junk
