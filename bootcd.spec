@@ -1,10 +1,10 @@
 %define name bootcd
-%define version 3.3
+%define version 3.4
 %define release 2%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
-Distribution: PlanetLab 3.3
+Distribution: PlanetLab 4.0
 URL: http://cvs.planet-lab.org/cvs/bootcd
 
 Summary: Boot CD
