@@ -40,7 +40,7 @@ Central servers.
 pushd bootcd
 
 # Build the reference image
-./prep.sh
+./prep.sh -r $([ -f "/etc/fedora-release" ] && awk ' { print $4 } ' /etc/fedora-release || echo 4)
 
 # Build the default configuration (PlanetLab)
 ./build.sh
@@ -64,6 +64,7 @@ tar cpf - \
     build/isofs/kernel \
     build/passwd \
     build/version.txt \
+	bootcustom.sh \
     configurations \
     syslinux/unix/syslinux | \
     tar -C $RPM_BUILD_ROOT/%{_datadir}/%{name}/ -xpf -
