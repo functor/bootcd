@@ -61,7 +61,7 @@
 set -e 
 COMMANDSH=$(basename $0)
 COMMAND=$(basename $0 .sh)
-REVISION="$Id$"
+REVISION="$Id: bootcustom.sh,v 1.1 2007/08/08 20:22:11 soltesz Exp $"
 
 function usage () {
 
