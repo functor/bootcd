@@ -1,10 +1,10 @@
 %define name bootcd
-%define version 3.3
+%define version 3.4
 %define release 2%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
-Distribution: PlanetLab 3.3
+Distribution: PlanetLab 4.0
 URL: http://cvs.planet-lab.org/cvs/bootcd
 
 Summary: Boot CD
@@ -40,7 +40,7 @@ Central servers.
 pushd bootcd
 
 # Build the reference image
-./prep.sh -r $([ -f "/etc/fedora-release" ] && awk ' { print $4 } ' /etc/fedora-release || echo 4)
+./prep.sh -a $(uname -i) -r $([ -f "/etc/fedora-release" ] && awk ' { if ($2=="Core") print $4; else print $3 } ' /etc/fedora-release || echo 4)
 
 # Build the default configuration (PlanetLab)
 ./build.sh
