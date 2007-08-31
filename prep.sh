@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.12 2006/08/21 20:24:09 mlhuang Exp $
+# $Id: prep.sh,v 1.13.6.1 2007/08/30 16:38:59 mef Exp $
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -26,9 +26,7 @@ fi
 
 export PATH
 
-# Release and architecture to install
-releasever=4
-basearch=i386
+. build.common
 
 # Packages to install
 packagelist=(
@@ -109,30 +107,6 @@ usr/share/zoneinfo/UTC
 usr/lib/locale/en_US.utf8
 )
 
-usage()
-{
-    echo "Usage: prep.sh [OPTION]..."
-    echo "	-r release	Fedora release number (default: $releasever)"
-    echo "	-a arch		Fedora architecture (default: $basearch)"
-    echo "	-h		This message"
-    exit 1
-}
-
-# Get options
-while getopts "r:a:h" opt ; do
-    case $opt in
-	r)
-	    releasever=$OPTARG
-	    ;;
-	a)
-	    basearch=$OPTARG
-	    ;;
-	h|*)
-	    usage
-	    ;;
-    esac
-done
-
 # Do not tolerate errors
 set -e
 
@@ -147,7 +121,8 @@ rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/ve
 for package in "${packagelist[@]}" ; do
     packages="$packages -p $package"
 done
-mkfedora -v -r $releasever -a $basearch -k $packages $bootcd
+
+pl_setup_chroot $bootcd $packages
 
 pushd $bootcd
 
@@ -164,9 +139,6 @@ tar -xpf precious.tar
 rm -f precious.tar
 
 popd
-
-# Disable all services in reference image
-chroot $bootcd sh -c "/sbin/chkconfig --list | awk '{ print \$1 }' | xargs -i /sbin/chkconfig {} off"
 
 # Install ipnmac (for SuperMicro machines with IPMI)
 echo "* Installing IPMI utilities"
