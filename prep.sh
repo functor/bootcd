@@ -72,6 +72,7 @@ dos2unix
 bind-utils
 sharutils
 vconfig
+filesystem
 )
 
 # Unnecessary junk
