@@ -37,7 +37,7 @@ Central servers.
 %setup -q
 
 %build
-pushd bootcd
+pushd BootCD
 
 # Build the reference image
 ./prep.sh -a $(uname -i) -r $([ -f "/etc/fedora-release" ] && awk ' { if ($2=="Core") print $4; else print $3 } ' /etc/fedora-release || echo 4)
@@ -53,7 +53,7 @@ popd
 %install
 rm -rf $RPM_BUILD_ROOT
 
-pushd bootcd
+pushd  BootCD
 
 # Install the reference image and build scripts
 install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
