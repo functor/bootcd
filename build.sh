@@ -100,12 +100,19 @@ FULL_VERSION_STRING="$PLC_NAME BootCD $BOOTCD_VERSION"
 
 echo "* Building images for $FULL_VERSION_STRING"
 
-# From within a myplc chroot /tmp is too small to build
-# all possible images, whereas /data is part of the host
+# From within a myplc chroot /usr/tmp is too small 
+# to build all possible images, whereas /data is part of the host
 # filesystem and usually has sufficient space.  What we
 # should do is check whether the expected amount of space
 # is available.
-[ -d /data ] && BUILDTMP=/data || BUILDTMP=/tmp
+BUILDTMP=/usr/tmp
+if [ -d /data ] ; then
+	isreadonly=$(mktemp /data/isreadonly.XXXXXX)
+	if [ $? -eq 0 ] ; then
+		rm -f "$isreadonly"
+		BUILDTMP=/data
+	fi
+fi
 
 # Root of the ISO and USB images
 echo "* Populating root filesystem..."
