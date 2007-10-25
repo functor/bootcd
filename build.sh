@@ -107,8 +107,8 @@ echo "* Building images for $FULL_VERSION_STRING"
 # is available.
 BUILDTMP=/usr/tmp
 if [ -d /data ] ; then
-	isreadonly=$(mktemp /data/isreadonly.XXXXXX)
-	if [ $? -eq 0 ] ; then
+	isreadonly=$(mktemp /data/isreadonly.XXXXXX || /bin/true)
+	if [ -n "$isreadonly" ] ; then
 		rm -f "$isreadonly"
 		BUILDTMP=/data
 	fi
