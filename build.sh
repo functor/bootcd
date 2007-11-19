@@ -57,10 +57,12 @@ pushd $srcdir
 # Root of the isofs
 isofs=$PWD/build/isofs
 
-# Build reference image if it does not exist. This should only need to
-# be executed once at build time, never at run time.
-if [ ! -f $isofs/bootcd.img ] ; then
-    ./prep.sh
+# The reference image is expected to have been built by prep.sh (see .spec)
+# we disable the initial logic that called prep.sh if that was not the case
+# this is because prep.sh needs to know pldistro 
+if [ ! -f $isofs/bootcd.img -o ! -f build/version.txt ] ; then
+    echo "you have to run prep.sh prior to calling $0 - exiting"
+    exit 1
 fi
 
 # build/version.txt written by prep.sh
