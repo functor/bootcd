@@ -28,52 +28,11 @@ export PATH
 
 . build.common
 
-# Packages to install
-packagelist=(
-udev
-dhclient
-bash
-coreutils
-iputils
-kernel
-bzip2
-diffutils
-logrotate
-passwd
-rsh
-rsync
-sudo
-tcpdump
-telnet
-traceroute
-time
-wget
-yum
-curl
-gzip
-python
-tar
-pciutils
-kbd
-authconfig
-hdparm
-lvm
-lvm2
-kexec-tools
-gnupg
-nano
-parted
-pyparted
-openssh-server
-openssh-clients
-ncftp
-dosfstools
-dos2unix
-bind-utils
-sharutils
-vconfig
-filesystem
-)
+# pldistro expected as $1 - defaults to planetlab
+pldistro=planetlab
+[ -n "$@" ] && pldistro=$1
+
+# Packages to install : see <pldistro>-<fcdistro>-bootcd.lst
 
 # Unnecessary junk
 junk=(
@@ -119,11 +78,10 @@ install -d -m 755 $bootcd
 rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/version.txt
 
 # Install base system
-for package in "${packagelist[@]}" ; do
-    packages="$packages -p $package"
-done
+lst=${pldistro}-${pl_DISTRO_NAME}-bootcd.lst
+options=$(pl_getPackagesOptions $lst)
 
-pl_setup_chroot $bootcd $packages
+pl_setup_chroot $bootcd $options -k
 
 pushd $bootcd
 
