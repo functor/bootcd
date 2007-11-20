@@ -6,7 +6,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: newbuild.sh,v 1.2 2006/12/04 20:07:18 mlhuang Exp $
+# $Id$
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin

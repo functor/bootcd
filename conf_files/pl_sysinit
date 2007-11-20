@@ -135,3 +135,5 @@ echo "pl_sysinit: configuring kernel parameters"
 echo "pl_sysinit: bringing network online"
 /etc/init.d/pl_netinit
 
+echo "pl_sysinit: attempting to sync clock"
+/usr/sbin/ntpdate -b -t 10 -u pool.ntp.org

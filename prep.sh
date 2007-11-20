@@ -8,7 +8,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: prep.sh,v 1.13.6.1 2007/08/30 16:38:59 mef Exp $
+# $Id$
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin

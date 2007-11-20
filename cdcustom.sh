@@ -45,7 +45,7 @@
 set -e 
 COMMANDSH=$(basename $0)
 COMMAND=$(basename $0 .sh)
-REVISION="$Id: cdcustom.sh,v 1.8 2006/06/28 15:01:01 thierry Exp $"
+REVISION="$Id$"
 
 function usage () {
 

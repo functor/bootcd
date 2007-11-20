@@ -10,7 +10,7 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2006 The Trustees of Princeton University
 #
-# $Id: build.sh,v 1.40 2006/07/25 23:51:39 mlhuang Exp $
+# $Id$
 #
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -18,6 +18,8 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
 ALL=0
+# Leave 4 MB of free space
+FREE_SPACE=4096
 
 usage()
 {
@@ -262,8 +264,7 @@ mkisofs -o "$iso" \
 echo -n "* Creating USB image... "
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION.usb"
 
-# Leave 1 MB of free space on the VFAT filesystem
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
+mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
 # Mount it
 tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
@@ -295,8 +296,7 @@ $srcdir/syslinux/unix/syslinux "$usb"
 echo -n "* Creating USB image... "
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-serial.usb"
 
-# Leave 1 MB of free space on the VFAT filesystem
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + 1024))
+mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
 # Mount it
 tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
@@ -394,8 +394,8 @@ echo "ttyS0" >> etc/securetty
 
 #calculate the size of /tmp based on the size of /etc & /var + 8MB slack
 etcsize=$(du -s ./etc | awk '{ print $1 }')
-varsize=$(du -s ./etc | awk '{ print $1 }')
-let msize=($vsize+$esize+8192)/1024
+varsize=$(du -s ./var | awk '{ print $1 }')
+let msize=($varsize+$etcsize+8192)/1024
 
 
 # generate pl_rsysinit
@@ -431,12 +431,11 @@ chmod +x etc/rc.d/init.d/pl_rsysinit
 
 popd
 
-chown -R 0.0 $cramfs
+chown -R 0.0 $tmp
 
 #create the cramfs image
 echo "* Creating cramfs image"
 mkfs.cramfs $tmp/ $cramfs
-# Leave 1 MB of free space on the VFAT filesystem
 cramfs_size=$(($(du -sk $cramfs | awk '{ print $1; }')))
 mv $cramfs ${BUILDTMP}/cramfs.img
 rm -rf $tmp
@@ -447,7 +446,7 @@ echo "* Creating ISO CRAMFS-based image"
 iso="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs.iso"
 
 tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-trap "$tmp; rm -rf $tmp" ERR INT
+trap "cd /; rm -rf $tmp" ERR INT
 (cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
 cat >$tmp/isolinux.cfg <<EOF
 DEFAULT kernel
@@ -491,8 +490,7 @@ trap - ERR INT
 echo "* Creating USB CRAMFS based image"
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs.usb"
 
-# leave 1MB of space on the USB VFAT
-let vfat_size=${cramfs_size}+2048
+let vfat_size=${cramfs_size}+$FREE_SPACE
 
 # Make VFAT filesystem for USB
 mkfs.vfat -C "$usb" $vfat_size
@@ -527,8 +525,7 @@ $srcdir/syslinux/unix/syslinux "$usb"
 echo "* Creating USB CRAMFS based image w/ serial line support"
 usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs-serial.usb"
 
-# leave 4MB of space on the USB VFAT
-let vfat_size=${cramfs_size}+2048
+let vfat_size=${cramfs_size}+$FREE_SPACE
 
 # Make VFAT filesystem for USB
 mkfs.vfat -C "$usb" $vfat_size
