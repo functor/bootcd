@@ -103,10 +103,6 @@ popd
 echo "* Installing IPMI utilities"
 install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
 
-# the place where modprobe.conf gets installed has changed
-modprobedist=$(rpm -ql module-init-tools | grep modprobe.conf.dist)
-sed -i -e "s,@MODPROBECONFDIST@,$modprobedist,g" conf_files/modprobe.conf
-
 # Install configuration files
 echo "* Installing configuration files"
 for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
