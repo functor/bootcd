@@ -24,18 +24,33 @@ def main(argv):
     pcimap = pypcimap.PCIMap(path)
     print "pl_hwinit: loading applicable modules"
     devices = pypciscan.get_devices()
+    storage_devices = 0
+    network_devices = 0
     missing = []
     for (slot, dev) in devices.iteritems():
         modules = pcimap.get(dev)
+        base = (dev[4] & 0xff00) >> 8
         if len(modules) == 0:
-            base = (dev[4] & 0xff00) >> 8
             if base == 0x01 or base == 0x02:
                 # storage or network device, in that order
                 missing.append((slot, dev))
         else:
+            if base == 0x01:
+                storage_devices += 1
+            elif base == 0x02:
+                network_devices += 1
+
             # FIXME: This needs improved logic in the case of multiple matching modules
             for module in modules:
+                print "pl_hwinit: found and loading module %s (%s)" % (module, slot)
                 modprobe(module)
+
+    if network_devices == 0:
+        print "pl_hwinit: no supported network devices found!"
+        print "pl_hwinit: the following devices were found, but have no driver:"
+        print "pl_hwinit: ", "\npl_hwinit: ".join(missing)
+
+    # XXX: could check for storage devices too, but older kernels have a lot of that built-in
 
     # sd_mod won't get loaded automatically
     print "pl_hwinit: loading sd_mod"
