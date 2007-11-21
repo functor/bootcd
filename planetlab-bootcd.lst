@@ -42,4 +42,3 @@ package: dos2unix
 package: bind-utils
 package: sharutils
 package: vconfig
-package: ntp

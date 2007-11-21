@@ -32,7 +32,7 @@ export PATH
 pldistro=planetlab
 [ -n "$@" ] && pldistro=$1
 
-# Packages to install : see <pldistro>-<fcdistro>-bootcd.lst
+# Packages to install : see <pldistro>-bootcd.lst
 
 # Unnecessary junk
 junk=(
@@ -78,8 +78,8 @@ install -d -m 755 $bootcd
 rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/version.txt
 
 # Install base system
-lst=${pldistro}-${pl_DISTRO_NAME}-bootcd.lst
-options=$(pl_getPackagesOptions $lst)
+lst=${pldistro}-bootcd.lst
+options=$(pl_getPackagesOptions2 ${pl_DISTRO_NAME} $lst)
 
 pl_setup_chroot $bootcd $options -k
 
