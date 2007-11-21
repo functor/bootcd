@@ -29,7 +29,7 @@ def main(argv):
     missing = []
     for (slot, dev) in devices.iteritems():
         modules = pcimap.get(dev)
-        base = (dev[4] & 0xff00) >> 8
+        base = (dev[4] & 0xff0000) >> 16
         if len(modules) == 0:
             if base == 0x01 or base == 0x02:
                 # storage or network device, in that order
