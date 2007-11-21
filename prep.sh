@@ -119,14 +119,6 @@ done
 echo "* Installing fallback node configuration file"
 install -D -m 644 conf_files/default-net.cnf $bootcd/usr/boot/default-net.cnf
 
-# Build pcitable for hardware detection
-echo "* Building pcitable for hardware detection"
-pci_map_file=$(find $bootcd/lib/modules/ -name modules.pcimap | head -1)
-module_dep_file=$(find $bootcd/lib/modules/ -name modules.dep | head -1)
-pci_table=$bootcd/usr/share/hwdata/pcitable
-$srcdir/BootManager/source/merge_hw_tables.py \
-    $module_dep_file $pci_map_file $pci_table $bootcd/etc/pl_pcitable
-
 # Copy /etc/passwd out
 install -D -m 644 $bootcd/etc/passwd build/passwd
 
