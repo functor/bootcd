@@ -8,7 +8,7 @@
 #
 # Aaron Klingaman <alk@absarokasoft.com>
 # Mark Huang <mlhuang@cs.princeton.edu>
-# Copyright (C) 2004-2006 The Trustees of Princeton University
+# Copyright (C) 2004-2007 The Trustees of Princeton University
 #
 # $Id$
 #
@@ -17,35 +17,46 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
-ALL=0
+TYPES="usb iso usb_serial iso_serial"
 # Leave 4 MB of free space
 FREE_SPACE=4096
+CUSTOM_DIR=
+OUTPUT_BASE=
+MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
 
 usage()
 {
     echo "Usage: build.sh [OPTION]..."
-    echo "	-c name		(Deprecated) Static configuration to use (default: $CONFIGURATION)"
-    echo "	-f planet.cnf	Node to customize CD for (default: none)"
-    echo "      -a              Build all images (default: only base images)"
-    echo "	-h		This message"
+    echo "    -c name          (Deprecated) Static configuration to use (default: $CONFIGURATION)"
+    echo "    -f planet.cnf    Node to customize CD for (default: none)"
+    echo "    -t 'types'       Build the specified images (default: $TYPES)"
+    echo "    -C custom-dir    Custom directory"
+    echo "    -O output-base   The basename of the generated files (default: PLC_NAME-BootCD-VERSION)"
+    echo "    -h               This message"
     exit 1
 }
 
 # Get options
-while getopts "c:f:ah" opt ; do
+while getopts "O:c:f:t:C:h" opt ; do
     case $opt in
-	c)
-	    CONFIGURATION=$OPTARG
-	    ;;
-	f)
-	    NODE_CONFIGURATION_FILE=$OPTARG
-	    ;;
-	a)
-	    ALL=1
-	    ;;
-	h|*)
-	    usage
-	    ;;
+    c)
+        CONFIGURATION=$OPTARG
+        ;;
+    f)
+        NODE_CONFIGURATION_FILE=$OPTARG
+        ;;
+    t)
+        TYPES="$OPTARG"
+        ;;
+    C)
+        CUSTOM_DIR="$OPTARG"
+        ;;
+    O)
+        OUTPUT_BASE="$OPTARG"
+        ;;
+    h|*)
+        usage
+        ;;
     esac
 done
 
@@ -63,7 +74,7 @@ isofs=$PWD/build/isofs
 # we disable the initial logic that called prep.sh if that was not the case
 # this is because prep.sh needs to know pldistro 
 if [ ! -f $isofs/bootcd.img -o ! -f build/version.txt ] ; then
-    echo "you have to run prep.sh prior to calling $0 - exiting"
+    echo "You have to run prep.sh prior to calling $0 - exiting"
     exit 1
 fi
 
@@ -92,7 +103,7 @@ if [ -z "$PLC_BOOT_CA_SSL_CRT" -a -d configurations/$CONFIGURATION ] ; then
     PLC_WWW_HOST="www.planet-lab.org"
     PLC_WWW_PORT=80
     if [ -n "$EXTRA_VERSION" ] ; then
-	BOOTCD_VERSION="$BOOTCD_VERSION $EXTRA_VERSION"
+    BOOTCD_VERSION="$BOOTCD_VERSION $EXTRA_VERSION"
     fi
     PLC_BOOT_HOST=$PRIMARY_SERVER
     PLC_BOOT_SSL_PORT=$PRIMARY_SERVER_PORT
@@ -111,18 +122,45 @@ echo "* Building images for $FULL_VERSION_STRING"
 # is available.
 BUILDTMP=/usr/tmp
 if [ -d /data ] ; then
-	isreadonly=$(mktemp /data/isreadonly.XXXXXX || /bin/true)
-	if [ -n "$isreadonly" ] ; then
-		rm -f "$isreadonly"
-		BUILDTMP=/data
-	fi
+    isreadonly=$(mktemp /data/isreadonly.XXXXXX || /bin/true)
+    if [ -n "$isreadonly" ] ; then
+        rm -f "$isreadonly"
+        BUILDTMP=/data
+    fi
 fi
+
+declare -a _CLEANUPS=()
+function do_cleanup()
+{
+    cd /
+    for i in "${_CLEANUPS[@]}"; do
+        $i
+    done
+}
+function push_cleanup()
+{
+    _CLEANUPS=( "${_CLEANUPS[@]}" "$*" )
+}
+function pop_cleanup()
+{
+    unset _CLEANUPS[$((${#_CLEANUPS[@]} - 1))]
+}
+
+trap "do_cleanup" ERR INT EXIT
+
+BUILDTMP=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
+push_cleanup rm -fr "${BUILDTMP}"
+mkdir "${BUILDTMP}/isofs"
+for i in "$isofs"/{bootcd.img,kernel,isolinux.bin}; do
+    ln -s "$i" "${BUILDTMP}/isofs"
+done
+isofs="${BUILDTMP}/isofs"
 
 # Root of the ISO and USB images
 echo "* Populating root filesystem..."
-overlay=$(mktemp -d ${BUILDTMP}/overlay.XXXXXX)
+overlay="${BUILDTMP}/overlay"
 install -d -m 755 $overlay
-trap "rm -rf $overlay" ERR INT
+push_cleanup rm -fr $overlay
 
 # Create version files
 echo "* Creating version files"
@@ -142,11 +180,11 @@ echo "* Installing boot server configuration files"
 # but never got around to it. Just install the same parameters for
 # both for now.
 for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
-	install -D -m 644 $PLC_BOOT_CA_SSL_CRT $dir/cacert.pem
-	install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
-	echo "$PLC_BOOT_HOST" >$dir/boot_server
-	echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
-	echo "/boot/" >$dir/boot_server_path
+    install -D -m 644 $PLC_BOOT_CA_SSL_CRT $dir/cacert.pem
+    install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
+    echo "$PLC_BOOT_HOST" >$dir/boot_server
+    echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
+    echo "/boot/" >$dir/boot_server_path
 done
 
 # (Deprecated) Install old-style boot server configuration files
@@ -214,192 +252,161 @@ echo "* Compressing overlay image"
 (cd $overlay && find . | cpio --quiet -c -o) | gzip -9 >$isofs/overlay.img
 
 rm -rf $overlay
-trap - ERR INT
+pop_cleanup
+
+if [ -n "$CUSTOM_DIR" ]; then
+    echo "* Compressing custom image"
+    (cd "$CUSTOM_DIR" && find . | cpio --quiet -c -o) | gzip -9 >$isofs/custom.img
+fi
 
 # Calculate ramdisk size (total uncompressed size of both archives)
-ramdisk_size=$(gzip -l $isofs/bootcd.img $isofs/overlay.img | tail -1 | awk '{ print $2; }') # bytes
+ramdisk_size=$(gzip -l $isofs/bootcd.img $isofs/overlay.img ${CUSTOM_DIR:+$isofs/custom.img} | tail -1 | awk '{ print $2; }') # bytes
 ramdisk_size=$((($ramdisk_size + 1023) / 1024)) # kilobytes
 
-# Write isolinux configuration
 echo "$FULL_VERSION_STRING" >$isofs/pl_version
-cat >$isofs/isolinux.cfg <<EOF
+
+popd
+
+function build_iso()
+{
+    local iso="$1"
+    local serial=$2
+    local custom=$3
+
+    # Write isolinux configuration
+    cat >$isofs/isolinux.cfg <<EOF
+${serial:+SERIAL 0 115200}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
 EOF
 
-# Change back to output directory
-popd
-
-# Create ISO image
-echo "* Creating ISO image"
-iso="$PLC_NAME-BootCD-$BOOTCD_VERSION.iso"
-mkisofs -o "$iso" \
-    -R -allow-leading-dots -J -r \
-    -b isolinux.bin -c boot.cat \
-    -no-emul-boot -boot-load-size 4 -boot-info-table \
-    $isofs
-
-echo "* Creating ISO image with serial line support"
-iso="$PLC_NAME-BootCD-$BOOTCD_VERSION-serial.iso"
-cat >$isofs/isolinux.cfg <<EOF
-SERIAL 0 115200
-PROMPT 0
-TIMEOUT 120
-DISPLAY pl_version
-DEFAULT serial
-LABEL serial
-	KERNEL kernel
-	APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw  console=ttyS0,115200n8
-EOF
-mkisofs -o "$iso" \
-    -R -allow-leading-dots -J -r \
-    -b isolinux.bin -c boot.cat \
-    -no-emul-boot -boot-load-size 4 -boot-info-table \
-    $isofs
+    # Create ISO image
+    echo "* Creating ISO image"
+    mkisofs -o "$iso" \
+        $MKISOFS_OPTS \
+        $isofs
+}
 
 # Create USB image
-echo -n "* Creating USB image... "
-usb="$PLC_NAME-BootCD-$BOOTCD_VERSION.usb"
+function build_usb()
+{
+    echo -n "* Creating USB image... "
+    local usb="$1"
+    local serial=$2
+    local custom=$3
 
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
+    mkfs.vfat -C "$usb" $(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
-# Mount it
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-mount -o loop "$usb" $tmp
-trap "umount $tmp; rm -rf $tmp" ERR INT
+    # Populate it
+    echo -n " populating USB image... "
+    mcopy -bsQ -i "$usb" "$isofs"/* ::/
 
-# Populate it
-echo -n " populating USB image... "
-(cd $isofs && find . | cpio -p -d -u $tmp/)
-
-# Use syslinux instead of isolinux to make the image bootable
-rm -f $tmp/isolinux.cfg
-cat >$tmp/syslinux.cfg <<EOF
+    # Use syslinux instead of isolinux to make the image bootable
+    tmp="${BUILDTMP}/syslinux.cfg"
+    cat >$tmp <<EOF
+${serial:+SERIAL 0 115200}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
 EOF
-umount $tmp
-rmdir $tmp
-trap - ERR INT
+    mdel -i "$usb" ::/isolinux.cfg 2>/dev/null || :
+    mcopy -i "$usb" "$tmp" ::/syslinux.cfg
+    rm -f "$tmp"
 
-echo "making USB image bootable."
-$srcdir/syslinux/unix/syslinux "$usb"
+    echo "making USB image bootable."
+    $srcdir/syslinux/unix/syslinux "$usb"
+}
 
-
-# Create USB image with serial line support
-echo -n "* Creating USB image... "
-usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-serial.usb"
-
-mkfs.vfat -C "$usb" $(($(du -sk $isofs | awk '{ print $1; }') + $FREE_SPACE))
-
-# Mount it
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-mount -o loop "$usb" $tmp
-trap "umount $tmp; rm -rf $tmp" ERR INT
-
-# Populate it
-echo -n " populating USB image... "
-(cd $isofs && find . | cpio -p -d -u $tmp/)
-
-# Use syslinux instead of isolinux to make the image bootable
-rm -f $tmp/isolinux.cfg
-cat >$tmp/syslinux.cfg <<EOF
-SERIAL 0 115200
-PROMPT 0
-TIMEOUT 120
-DISPLAY pl_version
-DEFAULT serial
-LABEL serial
-	KERNEL kernel
-	APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img root=/dev/ram0 rw  console=ttyS0,115200n8
-EOF
-
-umount $tmp
-rmdir $tmp
-trap - ERR INT
-
-echo "making USB image with serial line support bootable."
-$srcdir/syslinux/unix/syslinux "$usb"
-
-[ $ALL -eq 0 ] && exit 0
 
 # Setup CRAMFS related support
-echo "* Setting up CRAMFS-based images"
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-cramfs=$(mktemp ${BUILDTMP}/cramfs.XXXXXX)
-trap "$tmp; rm -rf $tmp $cramfs" ERR INT
-pushd $tmp
-gzip -d -c $isofs/bootcd.img  | cpio -diu
-gzip -d -c $isofs/overlay.img | cpio -diu
+function prepare_cramfs()
+{
+    [ -n "$CRAMFS_PREPARED" ] && return 0
+    local custom=$1
 
-# clean out unnecessary rpm lib
-echo "* clearing var/lib/rpm/*"
-rm -f var/lib/rpm/*
+    echo "* Setting up CRAMFS-based images"
+    local tmp="${BUILDTMP}/cramfs-tree"
+    mkdir -p "$tmp"
+    push_cleanup rm -rf $tmp
+    pushd $tmp
+    gzip -d -c $isofs/bootcd.img     | cpio -diu
+    gzip -d -c $isofs/overlay.img    | cpio -diu
+    [ -n "$custom" ] && \
+        gzip -d -c $isofs/custom.img | cpio -diu
 
-# bootcd requires this directory
-mkdir -p mnt/confdevice
+    # clean out unnecessary rpm lib
+    echo "* clearing var/lib/rpm/*"
+    rm -f var/lib/rpm/*
 
-# relocate various directory to /tmp
-rm -rf root
-ln -fs /tmp/root root
-ln -fs /sbin/init linuxrc 
-ln -fs /tmp/resolv.conf etc/resolv.conf
-ln -fs /tmp/etc/mtab etc/mtab
+    # bootcd requires this directory
+    mkdir -p mnt/confdevice
 
-# have pl_rsysinit copy over appropriate etc & var directories into /tmp/etc/
-# make /tmp/etc
-echo "* renaming dirs in ./etc"
-pushd etc
-for dir in `find * -type d -prune | grep -v rc.d`; do mv ${dir} ${dir}_o; ln -fs /tmp/etc/${dir} ${dir} ; done
-popd
+    # relocate various directory to /tmp
+    rm -rf root
+    ln -fs /tmp/root root
+    ln -fs /sbin/init linuxrc 
+    ln -fs /tmp/resolv.conf etc/resolv.conf
+    ln -fs /tmp/etc/mtab etc/mtab
 
-echo "* renaming dirs in ./var"
-# rename all top-level directories and put in a symlink to /tmp/var
-pushd var
-for dir in `find * -type d -prune`; do mv ${dir} ${dir}_o; ln -fs /tmp/var/${dir} ${dir} ; done
-popd
+    # have pl_rsysinit copy over appropriate etc & var directories into /tmp/etc/
+    # make /tmp/etc
+    echo "* renaming dirs in ./etc"
+    pushd etc
+    for dir in `find * -type d -prune | grep -v rc.d`; do
+        mv ${dir} ${dir}_o
+        ln -fs /tmp/etc/${dir} ${dir}
+    done
+    popd
 
-#overwrite fstab to mount / as cramfs and /tmp as tmpfs
-echo "* Overwriting etc/fstab to use cramfs and tmpfs"
-rm -f ./etc/fstab
-cat >./etc/fstab <<EOF
+    echo "* renaming dirs in ./var"
+    # rename all top-level directories and put in a symlink to /tmp/var
+    pushd var
+    for dir in `find * -type d -prune`; do
+        mv ${dir} ${dir}_o
+        ln -fs /tmp/var/${dir} ${dir}
+    done
+    popd
+
+    # overwrite fstab to mount / as cramfs and /tmp as tmpfs
+    echo "* Overwriting etc/fstab to use cramfs and tmpfs"
+    rm -f ./etc/fstab
+    cat >./etc/fstab <<EOF
 /dev/ram0     /              cramfs     ro              0 0
 none          /dev/pts       devpts     gid=5,mode=620  0 0
 none          /proc          proc       defaults        0 0
 none          /sys           sysfs      defaults        0 0
 EOF
 
-pushd dev
-rm -f console
-mknod console c 5 1
-#for i in 0 1 2 3 4 5 6 7 8; do rm -f ram${i} ; done
-#for i in 0 1 2 3 4 5 6 7 8; do mknod ram${i} b 1 ${i} ; done
-#ln -fs ram1 ram
-#ln -fs ram0 ramdisk
-popd
+    pushd dev
+    rm -f console
+    mknod console c 5 1
+    #for i in 0 1 2 3 4 5 6 7 8; do rm -f ram${i} ; done
+    #for i in 0 1 2 3 4 5 6 7 8; do mknod ram${i} b 1 ${i} ; done
+    #ln -fs ram1 ram
+    #ln -fs ram0 ramdisk
+    popd
 
-# update etc/inittab to start with pl_rsysinit
-sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
+    # update etc/inittab to start with pl_rsysinit
+    sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
 
-# modify inittab to have a serial console
-echo "T0:23:respawn:/sbin/agetty -L ttyS0 9600 vt100" >> etc/inittab
-# and let root log in
-echo "ttyS0" >> etc/securetty
+    # modify inittab to have a serial console
+    echo "T0:23:respawn:/sbin/agetty -L ttyS0 9600 vt100" >> etc/inittab
+    # and let root log in
+    echo "ttyS0" >> etc/securetty
 
-#calculate the size of /tmp based on the size of /etc & /var + 8MB slack
-etcsize=$(du -s ./etc | awk '{ print $1 }')
-varsize=$(du -s ./var | awk '{ print $1 }')
-let msize=($varsize+$etcsize+8192)/1024
+    # calculate the size of /tmp based on the size of /etc & /var + 8MB slack
+    etcsize=$(du -s ./etc | awk '{ print $1 }')
+    varsize=$(du -s ./var | awk '{ print $1 }')
+    let msize=($varsize+$etcsize+8192)/1024
 
 
-# generate pl_rsysinit
-cat > etc/rc.d/init.d/pl_rsysinit <<EOF
+    # generate pl_rsysinit
+    cat > etc/rc.d/init.d/pl_rsysinit <<EOF
 #!/bin/sh
 # generated by build.sh
 echo -n "pl_rsysinit: preparing /etc and /var for pl_sysinit..."
@@ -427,135 +434,109 @@ echo "done"
 echo "pl_rsysinit: handing over to pl_sysinit"
 /etc/init.d/pl_sysinit
 EOF
-chmod +x etc/rc.d/init.d/pl_rsysinit
+    chmod +x etc/rc.d/init.d/pl_rsysinit
 
-popd
+    popd
 
-chown -R 0.0 $tmp
+    chown -R 0.0 $tmp
 
-#create the cramfs image
-echo "* Creating cramfs image"
-mkfs.cramfs $tmp/ $cramfs
-cramfs_size=$(($(du -sk $cramfs | awk '{ print $1; }')))
-mv $cramfs ${BUILDTMP}/cramfs.img
-rm -rf $tmp
-trap - ERR INT
+    # create the cramfs image
+    echo "* Creating cramfs image"
+    mkfs.cramfs $tmp/ ${BUILDTMP}/cramfs.img
+    cramfs_size=$(($(du -sk ${BUILDTMP}/cramfs.img | awk '{ print $1; }') + 1))
+    rm -rf $tmp
+    pop_cleanup
+}
 
 # Create ISO CRAMFS image
-echo "* Creating ISO CRAMFS-based image"
-iso="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs.iso"
+function build_iso_cramfs()
+{
+    local iso="$1"
+    local serial=$2
+    prepare_cramfs $3
+    echo "* Creating ISO CRAMFS-based image"
 
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-trap "cd /; rm -rf $tmp" ERR INT
-(cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
-cat >$tmp/isolinux.cfg <<EOF
+    local tmp="${BUILDTMP}/cramfs-iso"
+    mkdir -p "$tmp"
+    push_cleanup rm -rf $tmp
+    (cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
+    cat >$tmp/isolinux.cfg <<EOF
+${serial:+SERIAL 0 9600}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=ttyS0,9600n8}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
 EOF
 
-cp ${BUILDTMP}/cramfs.img $tmp
-mkisofs -o "$iso" \
-    -R -allow-leading-dots -J -r \
-    -b isolinux.bin -c boot.cat \
-    -no-emul-boot -boot-load-size 4 -boot-info-table \
-    $tmp
+    cp ${BUILDTMP}/cramfs.img $tmp
+    mkisofs -o "$iso" \
+        "$MKISOFS_OPTS" \
+        $tmp
 
-# Create ISO CRAMFS image with serial line support
-echo "* Creating ISO image with cramfs and serial line support"
-cat >$tmp/isolinux.cfg <<EOF
-SERIAL 0 115200
-PROMPT 0
-TIMEOUT 120
-DISPLAY pl_version
-DEFAULT serial
-LABEL serial
-	KERNEL kernel
-	APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro  console=ttyS0,115200n8
-EOF
-
-iso="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs-serial.iso"
-mkisofs -o "$iso" \
-    -R -allow-leading-dots -J -r \
-    -b isolinux.bin -c boot.cat \
-    -no-emul-boot -boot-load-size 4 -boot-info-table \
-    $tmp
-
-rm -rf $tmp
-trap - ERR INT
+    rm -fr "$tmp"
+    pop_cleanup
+}
 
 # Create USB CRAMFS based image
-echo "* Creating USB CRAMFS based image"
-usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs.usb"
+function build_usb_cramfs()
+{
+    local usb="$1"
+    local serial=$2
+    prepare_cramfs $3
+    echo "* Creating USB CRAMFS based image"
 
-let vfat_size=${cramfs_size}+$FREE_SPACE
+    let vfat_size=${cramfs_size}+$FREE_SPACE
 
-# Make VFAT filesystem for USB
-mkfs.vfat -C "$usb" $vfat_size
+    # Make VFAT filesystem for USB
+    mkfs.vfat -C "$usb" $vfat_size
 
-# Mount it
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-mount -o loop "$usb" $tmp
-trap "umount $tmp; rm -rf $tmp ${BUILDTMP}/cramfs.img" ERR INT
+    # Populate it
+    echo "* Populating USB with overlay images and cramfs"
+    mcopy -bsQ -i "$usb" $isofs/kernel $isofs/pl_version ::/
+    mcopy -bsQ -i "$usb" ${BUILDTMP}/cramfs.img ::/
 
-# Populate it
-echo "* Populating USB with overlay images and cramfs"
-(cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
-cp ${BUILDTMP}/cramfs.img $tmp/
-
-# Use syslinux instead of isolinux to make the image bootable
-cat >$tmp/syslinux.cfg <<EOF
-TIMEOUT 120
+    # Use syslinux instead of isolinux to make the image bootable
+    tmp="${BUILDTMP}/syslinux.cfg"
+    cat >$tmp <<EOF
+${serial:+SERIAL 0 9600}
+DEFAULT kernel
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=ttyS0,9600n8}
 DISPLAY pl_version
-DEFAULT vga
-LABEL vga
-	KERNEL kernel
-	APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro
-EOF
-umount $tmp
-rmdir $tmp
-trap - ERR INT
-
-echo "* Making USB CRAMFS based image bootable"
-$srcdir/syslinux/unix/syslinux "$usb"
-
-# Create USB CRAMFS based image w/ serial line support
-echo "* Creating USB CRAMFS based image w/ serial line support"
-usb="$PLC_NAME-BootCD-$BOOTCD_VERSION-cramfs-serial.usb"
-
-let vfat_size=${cramfs_size}+$FREE_SPACE
-
-# Make VFAT filesystem for USB
-mkfs.vfat -C "$usb" $vfat_size
-
-# Mount it
-tmp=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-mount -o loop "$usb" $tmp
-trap "umount $tmp; rm -rf $tmp ${BUILDTMP}/cramfs.img" ERR INT
-
-# Populate it
-echo "* Populating USB with overlay images and cramfs"
-(cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
-cp ${BUILDTMP}/cramfs.img $tmp/
-
-# Use syslinux instead of isolinux to make the image bootable
-cat >$tmp/syslinux.cfg <<EOF
-SERIAL 0 9600
 PROMPT 0
-TIMEOUT 120
-DISPLAY pl_version
-DEFAULT serial
-LABEL serial
-	KERNEL kernel
-	APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro  console=ttyS0,9600n8
+TIMEOUT 40
 EOF
-umount $tmp
-rmdir $tmp
-trap - ERR INT
+  mcopy -bsQ -i "$usb" "$tmp" ::/syslinux.cfg
+  rm -f "$tmp"
 
-echo "* Making USB CRAMFS based image /w serial line support bootable"
-$srcdir/syslinux/unix/syslinux "$usb"
+  echo "* Making USB CRAMFS based image bootable"
+  $srcdir/syslinux/unix/syslinux "$usb"
+}
+
+function type_to_name()
+{
+    echo $1 | sed '
+        s/usb$/.usb/;
+        s/usb_serial$/-serial.usb/;
+        s/iso$/.iso/;
+        s/iso_serial$/-serial.iso/;
+        s/usb_cramfs$/-cramfs.usb/;
+        s/usb_cramfs_serial$/-cramfs-serial.usb/;
+        s/iso_cramfs$/-cramfs.iso/;
+        s/iso_cramfs_serial$/-cramfs-serial.iso/;
+        '
+}
+
+[ -z "$OUTPUT_BASE" ] && OUTPUT_BASE="$PLC_NAME-BootCD-$BOOTCD_VERSION"
+
+for t in $TYPES; do
+    serial=
+    tname=`type_to_name $t`
+    if [[ "$t" == *_serial ]]; then
+        serial=1
+        t=`echo $t | sed 's/_serial$//'`
+    fi
+    build_$t "${OUTPUT_BASE}${tname}" $serial $CUSTOM_DIR
+done
 
 exit 0
