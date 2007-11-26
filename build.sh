@@ -121,11 +121,11 @@ echo "* Building images for $FULL_VERSION_STRING"
 # should do is check whether the expected amount of space
 # is available.
 BUILDTMP=/usr/tmp
-if [ -d /data ] ; then
-    isreadonly=$(mktemp /data/isreadonly.XXXXXX || /bin/true)
+if [ -d /data/tmp ] ; then
+    isreadonly=$(mktemp /data/tmp/isreadonly.XXXXXX || /bin/true)
     if [ -n "$isreadonly" ] ; then
         rm -f "$isreadonly"
-        BUILDTMP=/data
+        BUILDTMP=/data/tmp
     fi
 fi
 
