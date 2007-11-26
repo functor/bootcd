@@ -30,6 +30,7 @@ usage()
     echo "    -c name          (Deprecated) Static configuration to use (default: $CONFIGURATION)"
     echo "    -f planet.cnf    Node to customize CD for (default: none)"
     echo "    -t 'types'       Build the specified images (default: $TYPES)"
+    echo "    -a               Build all supported images"
     echo "    -C custom-dir    Custom directory"
     echo "    -O output-base   The basename of the generated files (default: PLC_NAME-BootCD-VERSION)"
     echo "    -h               This message"
@@ -37,7 +38,7 @@ usage()
 }
 
 # Get options
-while getopts "O:c:f:t:C:h" opt ; do
+while getopts "O:c:f:t:C:ah" opt ; do
     case $opt in
     c)
         CONFIGURATION=$OPTARG
@@ -53,6 +54,9 @@ while getopts "O:c:f:t:C:h" opt ; do
         ;;
     O)
         OUTPUT_BASE="$OPTARG"
+        ;;
+    a)
+        TYPES="usb iso usb_serial iso_serial usb_cramfs iso_cramfs usb_cramfs_serial iso_cramfs_serial"
         ;;
     h|*)
         usage
