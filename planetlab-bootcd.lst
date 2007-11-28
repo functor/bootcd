@@ -27,7 +27,6 @@ package: pciutils
 package: kbd
 package: authconfig
 package: hdparm
-package: lvm
 package: lvm2
 package: kexec-tools
 package: gnupg
