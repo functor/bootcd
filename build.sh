@@ -442,8 +442,6 @@ EOF
 
     popd
 
-    chown -R 0.0 $tmp
-
     # create the cramfs image
     echo "* Creating cramfs image"
     mkfs.cramfs $tmp/ ${BUILDTMP}/cramfs.img
