@@ -155,9 +155,10 @@ trap "do_cleanup" ERR INT EXIT
 BUILDTMP=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
 push_cleanup rm -fr "${BUILDTMP}"
 mkdir "${BUILDTMP}/isofs"
-for i in "$isofs"/{bootcd.img,kernel,isolinux.bin}; do
+for i in "$isofs"/{bootcd.img,kernel}; do
     ln -s "$i" "${BUILDTMP}/isofs"
 done
+cp "$isofs/isolinux.bin" "${BUILDTMP}/isofs"
 isofs="${BUILDTMP}/isofs"
 
 # Root of the ISO and USB images
