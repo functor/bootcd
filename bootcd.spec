@@ -25,14 +25,6 @@ AutoReqProv: no
 The Boot CD securely boots PlanetLab nodes into an immutable
 environment.
 
-%package planetlab
-Summary: PlanetLab Boot CD
-Group: System Environment/Base
-
-%description planetlab
-The default PlanetLab Boot CD, customized to boot from PlanetLab
-Central servers.
-
 %prep
 %setup -q
 
@@ -41,12 +33,6 @@ pushd BootCD
 
 # Build the reference image
 ./prep.sh %{pldistro}
-
-# Build the default configuration (PlanetLab)
-./build.sh
-
-md5sum PlanetLab-BootCD-%{version}.{iso,usb} \
-    >PlanetLab-BootCD-%{version}.md5
 
 popd
 
@@ -60,19 +46,12 @@ install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
 install -m 755 build.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
 tar cpf - \
     build/isofs/bootcd.img \
-    build/isofs/isolinux.bin \
     build/isofs/kernel \
     build/passwd \
     build/version.txt \
 	bootcustom.sh \
-    configurations \
-    syslinux/unix/syslinux | \
+    configurations | \
     tar -C $RPM_BUILD_ROOT/%{_datadir}/%{name}/ -xpf -
-
-# Install the default images in the download/ directory
-install -d -m 755 $RPM_BUILD_ROOT/var/www/html/download
-install -m 644 PlanetLab-BootCD-%{version}.* \
-    $RPM_BUILD_ROOT/var/www/html/download/
 
 popd
     
@@ -90,20 +69,9 @@ if [ -n "$SUDO_USER" ] ; then
     chown -h -R $SUDO_USER %{_rpmdir}/%{_arch}
 fi
 
-%post planetlab
-cat <<EOF
-Remember to GPG sign
-/var/www/html/download/PlanetLab-BootCD-%{version}.{iso,usb} with
-the PlanetLab private key.
-EOF
-
 %files
 %defattr(-,root,root,-)
 %{_datadir}/%{name}
-
-%files planetlab
-%defattr(-,root,root,-)
-/var/www/html/download
 
 %changelog
 * Mon Jan 29 2006 Marc E. Fiuczynski <mef@cs.princeton.edu> - 
