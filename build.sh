@@ -324,7 +324,7 @@ EOF
     rm -f "$tmp"
 
     echo "making USB image bootable."
-    $srcdir/syslinux/unix/syslinux "$usb"
+    syslinux "$usb"
 }
 
 
@@ -509,11 +509,11 @@ DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
 EOF
-  mcopy -bsQ -i "$usb" "$tmp" ::/syslinux.cfg
-  rm -f "$tmp"
+    mcopy -bsQ -i "$usb" "$tmp" ::/syslinux.cfg
+    rm -f "$tmp"
 
-  echo "* Making USB CRAMFS based image bootable"
-  $srcdir/syslinux/unix/syslinux "$usb"
+    echo "* Making USB CRAMFS based image bootable"
+    syslinux "$usb"
 }
 
 function type_to_name()
