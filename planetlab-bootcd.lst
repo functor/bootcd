@@ -10,7 +10,7 @@ package: bzip2
 package: diffutils
 package: logrotate
 package: passwd
-package: rsh
+#package: rsh
 package: rsync
 package: sudo
 package: tcpdump
