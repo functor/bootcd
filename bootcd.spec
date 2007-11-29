@@ -16,7 +16,7 @@ Group: System Environment/Base
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
-Requires: dosfstools, mkisofs, gzip, mtools
+Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 
 AutoReqProv: no
 %define debug_package %{nil}
