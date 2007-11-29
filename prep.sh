@@ -144,11 +144,11 @@ echo "* Compressing reference image"
 (cd $bootcd && find . | cpio --quiet -c -o) | gzip -9 >$isofs/bootcd.img
 
 # Build syslinux
-echo "* Building syslinux"
-CFLAGS="-Werror -Wno-unused -finline-limit=2000" make -C syslinux
+# echo "* Building syslinux"
+# CFLAGS="-Werror -Wno-unused -finline-limit=2000" make -C syslinux
 
 # Install isolinux
-echo "* Installing isolinux"
-install -D -m 644 syslinux/isolinux.bin $isofs/isolinux.bin
+#echo "* Installing isolinux"
+#install -D -m 644 syslinux/isolinux.bin $isofs/isolinux.bin
 
 exit 0
