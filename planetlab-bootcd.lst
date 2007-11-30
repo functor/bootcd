@@ -43,3 +43,4 @@ package: sharutils
 package: vconfig
 package: ntp
 package: pypcilib
+package: openvpn
