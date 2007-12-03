@@ -11,7 +11,7 @@ loadedmodules = None
 def modprobe(module):
     ret = os.system("/sbin/modprobe %s" % module)
     if os.WEXITSTATUS(ret) == 0:
-        loadedmodules.write("%s\n" % module)
+        globals()['loadedmodules'].write("%s\n" % module)
         return True
     else:
         return False
@@ -33,7 +33,7 @@ def main(argv):
     storage_devices = 0
     network_devices = 0
     missing = []
-    loadedmodules = file('/tmp/loadedmodules', 'w')
+    globals()['loadedmodules'] = file('/tmp/loadedmodules', 'w')
     for (slot, dev) in devices.iteritems():
         modules = pcimap.get(dev)
         base = (dev[4] & 0xff0000) >> 16
