@@ -300,37 +300,27 @@ if [[ $? -ne 0 ]]; then
     net_init_failed
 fi
 
-if [[ "$IP_METHOD" == "dhcp" ]]; then
-    echo "pl_netinit: attempting to bring up device with dhcp"
+ifcfg=/etc/sysconfig/network-scripts/ifcfg-$ETH_DEVICE
+echo "DEVICE=$ETH_DEVICE" > $ifcfg
+[ -n "$NET_DEVICE" ] && \
+  echo "HWADDR=$NET_DEVICE" >> $ifcfg
+echo "BOOTPROTO=$IP_METHOD" >> $ifcfg
+echo "DHCP_HOSTNAME=$HOST_NAME.$DOMAIN_NAME" >> $ifcfg
 
-    # setup a dhclient conf file for this device (used to send
-    # our hostname to the dhcp server)
-    echo "interface \"$ETH_DEVICE\" {" > $DHCLIENT_CONF_FILE
-    echo "send host-name \"$HOST_NAME.$DOMAIN_NAME\";" >> $DHCLIENT_CONF_FILE
-    echo "}" >> $DHCLIENT_CONF_FILE
+if [ -n "$WLAN_SSID$WLAN_IWCONFIG$WLAN_MODE" ]; then
+    [ -n "$WLAN_SSID" ] && \
+      echo "ESSID=$WLAN_SSID" >> $ifcfg
+    [ -n "$WLAN_IWCONFIG" ] && \
+      echo "IWCONFIG=$WLAN_IWCONFIG" >> $ifcfg
+    [ -n "$WLAN_MODE" ] && \
+      echo "MODE=$WLAN_MODE" >> $ifcfg
+fi
 
-    # touch the redhat net device configuration file so 
-    # dhclient doesn't complain
-    /bin/touch /etc/sysconfig/network-scripts/ifcfg-$ETH_DEVICE
+if [ "$IP_METHOD" = "static" ]; then
+    echo "IPADDR=$IP_ADDRESS" >> $ifcfg
+    echo "NETMASK=$IP_NETMASK" >> $ifcfg
+    echo "GATEWAY=$IP_GATEWAY" >> $ifcfg
 
-    configured=0
-    while [[ $configured -eq 0 ]]; do
-	/sbin/dhclient -1 -cf $DHCLIENT_CONF_FILE $ETH_DEVICE 
-	if [[ $? -ne 0 ]]; then
-	    echo "pl_netinit: dhcp failed, retrying in 2 minutes"
-	    /bin/sleep 120
-	else
-	    echo "pl_netinit: dhcp succeeded"
-	    configured=1
-	    break
-	fi
-    done
-else
-    echo "pl_netinit: configuring device statically"
-
-    /sbin/ifconfig $ETH_DEVICE $IP_ADDRESS broadcast $IP_BROADCASTADDR \
-	netmask $IP_NETMASK
-    /sbin/route add default gw $IP_GATEWAY dev $ETH_DEVICE
     /bin/hostname "$HOST_NAME.$DOMAIN_NAME"
 
     if [[ -z "$IP_DNS1" ]]; then
@@ -343,6 +333,10 @@ else
 	echo "nameserver $IP_DNS2" >> /etc/resolv.conf
     fi
 fi
+
+
+echo "pl_netinit: attempting to bring up device $ETH_DEVICE"
+/sbin/ifup $ETH_DEVICE
 
 # for backwards compatibility
 /sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT
