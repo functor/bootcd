@@ -32,40 +32,7 @@ export PATH
 pldistro=planetlab
 [ -n "$@" ] && pldistro=$1
 
-# Packages to install : see <pldistro>-bootcd.lst
-
-# Unnecessary junk
-junk=(
-lib/obsolete
-lib/tls
-usr/share/cracklib
-usr/share/emacs
-usr/share/gnupg
-usr/share/i18n
-usr/share/locale
-usr/share/terminfo
-usr/share/zoneinfo
-usr/sbin/build-locale-archive
-usr/sbin/dbconverter-2
-usr/sbin/sasl*
-usr/sbin/tcpslice
-usr/lib/perl*
-usr/lib/locale
-usr/lib/sasl*
-usr/lib/gconv
-usr/lib/tls
-)
-
-precious=(
-usr/share/i18n/locales/en_US
-usr/share/i18n/charmaps/UTF-8.gz
-usr/share/locale/en
-usr/share/terminfo/l/linux
-usr/share/terminfo/v/vt100
-usr/share/terminfo/x/xterm
-usr/share/zoneinfo/UTC
-usr/lib/locale/en_US.utf8
-)
+# Packages to install, junk and precious : see build/<pldistro>/bootcd.pkgs
 
 # Do not tolerate errors
 set -e
@@ -78,26 +45,8 @@ install -d -m 755 $bootcd
 rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/version.txt
 
 # Install base system
-lst=${pldistro}-bootcd.lst
-options=$(pl_getPackagesOptions2 ${pl_DISTRO_NAME} $lst)
-
-pl_setup_chroot $bootcd $options -k
-
-pushd $bootcd
-
-echo "* Removing unnecessary junk"
-
-# Save precious files
-tar --ignore-failed-read -cpf precious.tar ${precious[*]}
-
-# Remove unnecessary junk
-rm -rf ${junk[*]}
-
-# Restore precious files
-tar -xpf precious.tar
-rm -f precious.tar
-
-popd
+pkgsfile=$(pl_locateDistroFile ../build/ $pldistro bootcd.pkgs) 
+pl_setup_chroot $bootcd -k -f $pkgsfile 
 
 # Install ipnmac (for SuperMicro machines with IPMI)
 echo "* Installing IPMI utilities"
