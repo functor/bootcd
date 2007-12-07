@@ -46,7 +46,7 @@ rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/ve
 
 # Install base system
 pkgsfile=$(pl_locateDistroFile ../build/ $pldistro bootcd.pkgs) 
-pl_setup_chroot $bootcd -k -f $pkgsfile 
+pl_root_setup_chroot $bootcd -k -f $pkgsfile 
 
 # Install ipnmac (for SuperMicro machines with IPMI)
 echo "* Installing IPMI utilities"
