@@ -1,14 +1,21 @@
+#
+# $Id$
+#
+%define url $URL$
+
 %define name bootcd
 %define version 3.4
-%define release 2%{?pldistro:.%{pldistro}}%{?date:.%{date}}
+%define taglevel 2
+
+%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
-Distribution: PlanetLab 4.0
-URL: http://cvs.planet-lab.org/cvs/bootcd
+Distribution: PlanetLab %{plrelease}
+URL: %(echo %{url} | cut -d ' ' -f 2)
 
 Summary: Boot CD
-Name: bootcd
+Name: %{name}
 Version: %{version}
 Release: %{release}
 License: BSD
