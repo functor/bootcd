@@ -294,6 +294,59 @@ EOF
         $MKISOFS_OPTS \
         $isofs
 }
+function build_usb_partition()
+{
+	echo -n "* Creating USB image with partitions..."
+	local usb="$1"
+    local serial=$2
+    local custom=$3
+
+	local size=$(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
+	size=$(( $size / 1024 ))
+
+	local heads=64
+	local sectors=32
+	local cylinders=$(( ($size*1024*2)/($heads*$sectors) ))
+	local offset=$(( $sectors*512 ))
+
+	/usr/lib/syslinux/mkdiskimage -M -4 "$usb" $size $heads $sectors
+
+	cat >${BUILDTMP}/mtools.conf<<EOF
+drive z:
+file="${usb}"
+cylinders=$cylinders
+heads=$heads
+sectors=$sectors
+offset=$offset
+mformat_only
+EOF
+	# environment variable for mtools
+	export MTOOLSRC="${BUILDTMP}/mtools.conf"
+
+	### COPIED FROM build_usb() below!!!!
+    echo -n " populating USB image... "
+    mcopy -bsQ -i "$usb" "$isofs"/* z:/
+	
+    # Use syslinux instead of isolinux to make the image bootable
+    tmp="${BUILDTMP}/syslinux.cfg"
+    cat >$tmp <<EOF
+${serial:+SERIAL 0 115200}
+DEFAULT kernel
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
+DISPLAY pl_version
+PROMPT 0
+TIMEOUT 40
+EOF
+    mdel -i "$usb" z:/isolinux.cfg 2>/dev/null || :
+    mcopy -i "$usb" "$tmp" z:/syslinux.cfg
+    rm -f "$tmp"
+    rm -f "${BUILDTMP}/mtools.conf"
+	unset MTOOLSRC
+
+    echo "making USB image bootable."
+    syslinux -o $offset "$usb"
+
+}
 
 # Create USB image
 function build_usb()
@@ -520,6 +573,7 @@ function type_to_name()
 {
     echo $1 | sed '
         s/usb$/.usb/;
+        s/usb_partition$/-partition.usb/;
         s/usb_serial$/-serial.usb/;
         s/iso$/.iso/;
         s/iso_serial$/-serial.iso/;
