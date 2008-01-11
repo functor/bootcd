@@ -72,45 +72,45 @@ CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
 while : ; do
 
     if [[ -f $CANCEL_BOOT_FLAG ]]; then
-	echo "pl_boot: got request to cancel boot, exiting"
-	exit 0
+        echo "pl_boot: got request to cancel boot, exiting"
+        exit 0
     fi
     
     if [[ $contact_count -ge $ATTEMPTS_BEFORE_BACKUP ]]; then
 
-	contact_count=0
+        contact_count=0
 
-	if [[ $on_backup_server == 1 ]]; then
-	    echo "pl_boot: failed to contact backup server, trying primary."
+        if [[ $on_backup_server == 1 ]]; then
+            echo "pl_boot: failed to contact backup server, trying primary."
 
-	    on_backup_server=0
+            on_backup_server=0
 
-	    CONNECT_BOOT_SERVER=$BOOT_SERVER
-	    CONNECT_BOOT_SERVER_PORT=$BOOT_SERVER_PORT
-	    CONNECT_BOOT_SERVER_PATH=$BOOT_SERVER_PATH
-	    CONNECT_BOOT_SERVER_GPG_KEYRING=$BOOT_SERVER_GPG_KEYRING
-	    CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
-	else
-	    echo "pl_boot: failed to contact primary server, trying backup."
+            CONNECT_BOOT_SERVER=$BOOT_SERVER
+            CONNECT_BOOT_SERVER_PORT=$BOOT_SERVER_PORT
+            CONNECT_BOOT_SERVER_PATH=$BOOT_SERVER_PATH
+            CONNECT_BOOT_SERVER_GPG_KEYRING=$BOOT_SERVER_GPG_KEYRING
+            CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
+        else
+            echo "pl_boot: failed to contact primary server, trying backup."
 
-	    on_backup_server=1
+            on_backup_server=1
 
-	    CONNECT_BOOT_SERVER=$BACKUP_BOOT_SERVER
-	    CONNECT_BOOT_SERVER_PORT=$BACKUP_BOOT_SERVER_PORT
-	    CONNECT_BOOT_SERVER_PATH=$BACKUP_BOOT_SERVER_PATH
-	    CONNECT_BOOT_SERVER_GPG_KEYRING=$BACKUP_BOOT_SERVER_GPG_KEYRING
-	    CONNECT_BOOT_SERVER_CACERT=$BACKUP_BOOT_SERVER_CACERT
-	fi
+            CONNECT_BOOT_SERVER=$BACKUP_BOOT_SERVER
+            CONNECT_BOOT_SERVER_PORT=$BACKUP_BOOT_SERVER_PORT
+            CONNECT_BOOT_SERVER_PATH=$BACKUP_BOOT_SERVER_PATH
+            CONNECT_BOOT_SERVER_GPG_KEYRING=$BACKUP_BOOT_SERVER_GPG_KEYRING
+            CONNECT_BOOT_SERVER_CACERT=$BACKUP_BOOT_SERVER_CACERT
+        fi
     fi
 
     if [[ $contact_count != 0 ]]; then
 
-	if [[ $on_backup_server == 1 ]]; then
-	    echo "pl_boot: attempting to fetch script from backup server in 30s"
-	else
-	    echo "pl_boot: attempting to fetch script from primary server in 30s"
-	fi
-	/bin/sleep 30
+        if [[ $on_backup_server == 1 ]]; then
+            echo "pl_boot: attempting to fetch script from backup server in 30s"
+        else
+            echo "pl_boot: attempting to fetch script from primary server in 30s"
+        fi
+    /bin/sleep 30
     fi
 
     # assemble the curl transaction
@@ -142,8 +142,8 @@ while : ; do
 
     echo "pl_boot: generating new nonce"
     /usr/bin/head --bytes=32 /dev/urandom | \
-	/usr/bin/od -tx1 -An --width=32 | \
-	/bin/sed 's/ //g' > /tmp/nonce
+    /usr/bin/od -tx1 -An --width=32 | \
+    /bin/sed 's/ //g' > /tmp/nonce
 
     echo "pl_boot: fetching script from boot server $CONNECT_BOOT_SERVER"
     ((contact_count++))
@@ -151,34 +151,34 @@ while : ; do
     $CURL_CMD
     curl_err=$?
     if [ $curl_err -ne 0 ]; then
-	echo "pl_boot: curl request failed with error $curl_err:"
-	cat /tmp/curl_errors
-	echo
-	if [ -n "$DISCONNECTED_OPERATION" ]; then
-	    mkdir /tmp/boot-media
-	    mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
-	    cp /tmp/boot-media/bootscript.gpg $UNVERIFIED_SCRIPT
-	    umount /tmp/boot-media
-	    rmdir /tmp/boot-media
-	else
-	    continue
-	fi
+        echo "pl_boot: curl request failed with error $curl_err:"
+        cat /tmp/curl_errors
+        echo
+        if [ -n "$DISCONNECTED_OPERATION" ]; then
+            mkdir /tmp/boot-media
+            mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
+            cp /tmp/boot-media/bootscript.gpg $UNVERIFIED_SCRIPT
+            umount /tmp/boot-media
+            rmdir /tmp/boot-media
+        else
+            continue
+        fi
     elif [ -n "$DISCONNECTED_OPERATION" ]; then
-	mkdir /tmp/boot-media
-	mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
-	cp $UNVERIFIED_SCRIPT /tmp/boot-media
-	umount /tmp/boot-media
-	rmdir /tmp/boot-media
+        mkdir /tmp/boot-media
+        mount -U "$DISCONNECTED_OPERATION" /tmp/boot-media
+        cp $UNVERIFIED_SCRIPT /tmp/boot-media
+        umount /tmp/boot-media
+        rmdir /tmp/boot-media
     fi 
 
     echo "pl_boot: verifying downloaded script"
     rm -f $VERIFIED_SCRIPT
     $GPG_CMD 2> /tmp/gpg_errors
     if [ $? -ne 0 ]; then
-	echo "pl_boot: failed to verify file:"
-	cat /tmp/gpg_errors
-	echo
-	continue
+        echo "pl_boot: failed to verify file:"
+        cat /tmp/gpg_errors
+        echo
+        continue
     fi
     echo "pl_boot: decrypted and verified script succesfully"
 
