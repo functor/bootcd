@@ -527,7 +527,7 @@ EOF
 
     cp ${BUILDTMP}/cramfs.img $tmp
     mkisofs -o "$iso" \
-        "$MKISOFS_OPTS" \
+        $MKISOFS_OPTS \
         $tmp
 
     rm -fr "$tmp"
