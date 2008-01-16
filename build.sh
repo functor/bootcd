@@ -18,6 +18,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
 TYPES="usb iso usb_serial iso_serial"
+ALL_TYPES="usb iso usb_serial iso_serial usb_cramfs iso_cramfs usb_cramfs_serial iso_cramfs_serial"
 # Leave 4 MB of free space
 FREE_SPACE=4096
 CUSTOM_DIR=
@@ -30,6 +31,7 @@ usage()
     echo "    -c name          (Deprecated) Static configuration to use (default: $CONFIGURATION)"
     echo "    -f planet.cnf    Node to customize CD for (default: none)"
     echo "    -t 'types'       Build the specified images (default: $TYPES)"
+    echo "                     All known types: $ALL_TYPES"
     echo "    -a               Build all supported images"
     echo "    -C custom-dir    Custom directory"
     echo "    -O output-base   The basename of the generated files (default: PLC_NAME-BootCD-VERSION)"
@@ -56,7 +58,7 @@ while getopts "O:c:f:t:C:ah" opt ; do
         OUTPUT_BASE="$OPTARG"
         ;;
     a)
-        TYPES="usb iso usb_serial iso_serial usb_cramfs iso_cramfs usb_cramfs_serial iso_cramfs_serial"
+        TYPES="$ALL_TYPES"
         ;;
     h|*)
         usage
@@ -274,9 +276,9 @@ popd
 
 function build_iso()
 {
-    local iso="$1"
-    local serial=$2
-    local custom=$3
+    local iso="$1" ; shift
+    local serial="$1" ; shift
+    local custom="$1"
 
     # Write isolinux configuration
     cat >$isofs/isolinux.cfg <<EOF
@@ -296,22 +298,22 @@ EOF
 }
 function build_usb_partition()
 {
-	echo -n "* Creating USB image with partitions..."
-	local usb="$1"
-    local serial=$2
-    local custom=$3
+    echo -n "* Creating USB image with partitions..."
+    local usb="$1" ; shift
+    local serial="$1" ; shift
+    local custom="$1"
 
-	local size=$(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
-	size=$(( $size / 1024 ))
+    local size=$(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
+    size=$(( $size / 1024 ))
 
-	local heads=64
-	local sectors=32
-	local cylinders=$(( ($size*1024*2)/($heads*$sectors) ))
-	local offset=$(( $sectors*512 ))
+    local heads=64
+    local sectors=32
+    local cylinders=$(( ($size*1024*2)/($heads*$sectors) ))
+    local offset=$(( $sectors*512 ))
 
-	/usr/lib/syslinux/mkdiskimage -M -4 "$usb" $size $heads $sectors
-
-	cat >${BUILDTMP}/mtools.conf<<EOF
+    /usr/lib/syslinux/mkdiskimage -M -4 "$usb" $size $heads $sectors
+    
+    cat >${BUILDTMP}/mtools.conf<<EOF
 drive z:
 file="${usb}"
 cylinders=$cylinders
@@ -320,10 +322,10 @@ sectors=$sectors
 offset=$offset
 mformat_only
 EOF
-	# environment variable for mtools
-	export MTOOLSRC="${BUILDTMP}/mtools.conf"
+    # environment variable for mtools
+    export MTOOLSRC="${BUILDTMP}/mtools.conf"
 
-	### COPIED FROM build_usb() below!!!!
+    ### COPIED FROM build_usb() below!!!!
     echo -n " populating USB image... "
     mcopy -bsQ -i "$usb" "$isofs"/* z:/
 	
@@ -341,7 +343,7 @@ EOF
     mcopy -i "$usb" "$tmp" z:/syslinux.cfg
     rm -f "$tmp"
     rm -f "${BUILDTMP}/mtools.conf"
-	unset MTOOLSRC
+    unset MTOOLSRC
 
     echo "making USB image bootable."
     syslinux -o $offset "$usb"
@@ -352,9 +354,9 @@ EOF
 function build_usb()
 {
     echo -n "* Creating USB image... "
-    local usb="$1"
-    local serial=$2
-    local custom=$3
+    local usb="$1" ; shift
+    local serial="$1" ; shift
+    local custom="$1"
 
     mkfs.vfat -C "$usb" $(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
@@ -385,7 +387,7 @@ EOF
 function prepare_cramfs()
 {
     [ -n "$CRAMFS_PREPARED" ] && return 0
-    local custom=$1
+    local custom="$1"
 
     echo "* Setting up CRAMFS-based images"
     local tmp="${BUILDTMP}/cramfs-tree"
@@ -507,9 +509,10 @@ EOF
 # Create ISO CRAMFS image
 function build_iso_cramfs()
 {
-    local iso="$1"
-    local serial=$2
-    prepare_cramfs $3
+    local iso="$1" ; shift
+    local serial="$1" ; shift
+    local custom="$1"
+    prepare_cramfs "$custom"
     echo "* Creating ISO CRAMFS-based image"
 
     local tmp="${BUILDTMP}/cramfs-iso"
@@ -538,8 +541,9 @@ EOF
 function build_usb_cramfs()
 {
     local usb="$1"
-    local serial=$2
-    prepare_cramfs $3
+    local serial="$1" ; shift
+    local custom="$1"
+    prepare_cramfs "$custom"
     echo "* Creating USB CRAMFS based image"
 
     let vfat_size=${cramfs_size}+$FREE_SPACE
@@ -593,7 +597,7 @@ for t in $TYPES; do
         serial=1
         t=`echo $t | sed 's/_serial$//'`
     fi
-    build_$t "${OUTPUT_BASE}${tname}" $serial $CUSTOM_DIR
+    build_$t "${OUTPUT_BASE}${tname}" "$serial" "$CUSTOM_DIR"
 done
 
 exit 0
