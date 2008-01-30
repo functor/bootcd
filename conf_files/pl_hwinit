@@ -8,8 +8,11 @@ import time
 
 loadedmodules = None
 
-def modprobe(module):
-    ret = os.system("/sbin/modprobe %s" % module)
+def modprobe(module, args = None):
+    if args: 
+        ret = os.system("/sbin/modprobe %s %s" % (module, args))
+    else:
+        ret = os.system("/sbin/modprobe %s" % module)
     if os.WEXITSTATUS(ret) == 0:
         globals()['loadedmodules'].write("%s\n" % module)
         return True
@@ -68,7 +71,7 @@ def main(argv):
     modprobe("usb_storage")
 
     print "pl_hwinit: loading floppy device driver"
-    modprobe("floppy")
+    modprobe("floppy","floppy=0,allowed_drive_mask")
 
     # always wait a bit between loading the usb drivers, and checking /sys/
     # for usb devices (this isn't necessarily for waiting for mass storage files,
