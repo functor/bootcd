@@ -5,7 +5,7 @@
 
 %define name bootcd
 %define version 3.4
-%define taglevel 2
+%define taglevel 3
 
 %define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
@@ -81,6 +81,11 @@ fi
 %{_datadir}/%{name}
 
 %changelog
+* Thu Jan 31 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-3.4-2 bootcd-3.4-3
+- load floppy with modprobe flags
+- support for creating a usb partition
+- removed obsolete files newbuild.sh, bootcustom.sh and cdcustom.sh
+
 * Mon Jan 29 2006 Marc E. Fiuczynski <mef@cs.princeton.edu> - 
 - added biginitrd usb image
 
