@@ -17,12 +17,13 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
-TYPES="usb iso usb_serial iso_serial"
-ALL_TYPES="usb iso usb_serial iso_serial usb_cramfs iso_cramfs usb_cramfs_serial iso_cramfs_serial"
+TYPES="usb iso"
+ALL_TYPES="usb iso usb_cramfs iso_cramfs"
 # Leave 4 MB of free space
 FREE_SPACE=4096
 CUSTOM_DIR=
 OUTPUT_BASE=
+CONSOLE_INFO="graphic"
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
 
 usage()
@@ -32,6 +33,8 @@ usage()
     echo "    -f planet.cnf    Node to customize CD for (default: none)"
     echo "    -t 'types'       Build the specified images (default: $TYPES)"
     echo "                     All known types: $ALL_TYPES"
+    echo "    -s console-info  Enable a serial line as console and also bring up getty on that line"
+    echo "                     console-info=devicename:baudrate"
     echo "    -a               Build all supported images"
     echo "    -C custom-dir    Custom directory"
     echo "    -O output-base   The basename of the generated files (default: PLC_NAME-BootCD-VERSION)"
@@ -40,7 +43,7 @@ usage()
 }
 
 # Get options
-while getopts "O:c:f:t:C:ah" opt ; do
+while getopts "O:c:f:s:t:C:ah" opt ; do
     case $opt in
     c)
         CONFIGURATION=$OPTARG
@@ -60,6 +63,9 @@ while getopts "O:c:f:t:C:ah" opt ; do
     a)
         TYPES="$ALL_TYPES"
         ;;
+    s)
+        CONSOLE_INFO="$OPTARG"
+	;;
     h|*)
         usage
         ;;
@@ -250,7 +256,7 @@ sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" build/passwd \
 
 # Install node configuration file (e.g., if node has no floppy disk or USB slot)
 if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
-    echo "* Installing node configuration file"
+    echo "* Installing node configuration file $NODE_CONFIGURATION_FILE -> /usr/boot/plnode.txt of the bootcd image"
     install -D -m 644 $NODE_CONFIGURATION_FILE $overlay/usr/boot/plnode.txt
 fi
 
@@ -274,17 +280,57 @@ echo "$FULL_VERSION_STRING" >$isofs/pl_version
 
 popd
 
+function extract_console_dev()
+{
+    local console="$1"
+    dev=$(echo $console| awk -F: ' {print $1}')
+    echo $dev
+}
+
+function extract_console_baud()
+{
+    local console="$1"
+    baud=$(echo $console| awk -F: ' {print $2}')
+    [ -z "$baud" ] && baud="115200"
+    echo $baud
+}
+
+function extract_console_parity()
+{
+    local console="$1"
+    parity=$(echo $console| awk -F: ' {print $3}')
+    [ -z "$parity" ] && parity="n"
+    echo $parity
+}
+
+function extract_console_bits()
+{
+    local console="$1"
+    bits=$(echo $console| awk -F: ' {print $4}')
+    [ -z "$bits" ] && bits="8"
+    echo $bits
+}
+
 function build_iso()
 {
     local iso="$1" ; shift
-    local serial="$1" ; shift
+    local console="$1" ; shift
     local custom="$1"
+    local serial=0
+
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+	console_parity=$(extract_console_parity $console)
+	console_bits=$(extract_console_bits $console)
+    fi
 
     # Write isolinux configuration
     cat >$isofs/isolinux.cfg <<EOF
 ${serial:+SERIAL 0 115200}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -296,12 +342,22 @@ EOF
         $MKISOFS_OPTS \
         $isofs
 }
+
 function build_usb_partition()
 {
     echo -n "* Creating USB image with partitions..."
     local usb="$1" ; shift
-    local serial="$1" ; shift
+    local console="$1" ; shift
     local custom="$1"
+    local serial=0
+
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+	console_parity=$(extract_console_parity $console)
+	console_bits=$(extract_console_bits $console)
+    fi
 
     local size=$(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
     size=$(( $size / 1024 ))
@@ -332,9 +388,9 @@ EOF
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 115200}
+${serial:+SERIAL 0 ${console_baud}}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -355,8 +411,17 @@ function build_usb()
 {
     echo -n "* Creating USB image... "
     local usb="$1" ; shift
-    local serial="$1" ; shift
+    local console="$1" ; shift
     local custom="$1"
+    local serial=0
+
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+	console_parity=$(extract_console_parity $console)
+	console_bits=$(extract_console_bits $console)
+    fi
 
     mkfs.vfat -C "$usb" $(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
 
@@ -367,9 +432,9 @@ function build_usb()
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 115200}
+${serial:+SERIAL 0 $console_baud}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=ttyS0,115200n8}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -387,7 +452,14 @@ EOF
 function prepare_cramfs()
 {
     [ -n "$CRAMFS_PREPARED" ] && return 0
-    local custom="$1"
+    local console=$1; shift
+    local custom=$1; 
+    local serial=0
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+    fi
 
     echo "* Setting up CRAMFS-based images"
     local tmp="${BUILDTMP}/cramfs-tree"
@@ -455,15 +527,21 @@ EOF
     sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
 
     # modify inittab to have a serial console
-    echo "T0:23:respawn:/sbin/agetty -L ttyS0 9600 vt100" >> etc/inittab
-    # and let root log in
-    echo "ttyS0" >> etc/securetty
+    if [ $serial -eq 1 ] ; then
+	echo "T0:23:respawn:/sbin/agetty -L $console_dev $console_baud vt100" >> etc/inittab
+        # and let root log in
+	echo "$console_dev" >> etc/securetty
+    fi
 
     # calculate the size of /tmp based on the size of /etc & /var + 8MB slack
     etcsize=$(du -s ./etc | awk '{ print $1 }')
     varsize=$(du -s ./var | awk '{ print $1 }')
     let msize=($varsize+$etcsize+8192)/1024
 
+    # make dhclient happy
+    for i in $(seq 0 9); do ln -fs /tmp/etc/dhclient-eth${i}.conf etc/dhclient-eth${i}.conf ; done
+    ln -fs /tmp/etc/resolv.conf etc/resolv.conf
+    ln -fs /tmp/etc/resolv.conf.predhclient etc/resolv.conf.predhclient
 
     # generate pl_rsysinit
     cat > etc/rc.d/init.d/pl_rsysinit <<EOF
@@ -490,6 +568,7 @@ for odir in \$(cd /var && ls -d *_o); do dir=\$(echo \$odir | sed 's,\_o$,,'); (
 popd
 
 echo "done"
+
 # hand over to pl_sysinit
 echo "pl_rsysinit: handing over to pl_sysinit"
 /etc/init.d/pl_sysinit
@@ -510,9 +589,18 @@ EOF
 function build_iso_cramfs()
 {
     local iso="$1" ; shift
-    local serial="$1" ; shift
+    local console="$1" ; shift
     local custom="$1"
-    prepare_cramfs "$custom"
+    local serial=0
+
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+	console_parity=$(extract_console_parity $console)
+	console_bits=$(extract_console_bits $console)
+    fi
+    prepare_cramfs "$console" "$custom"
     echo "* Creating ISO CRAMFS-based image"
 
     local tmp="${BUILDTMP}/cramfs-iso"
@@ -520,9 +608,9 @@ function build_iso_cramfs()
     push_cleanup rm -rf $tmp
     (cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
     cat >$tmp/isolinux.cfg <<EOF
-${serial:+SERIAL 0 9600}
+${serial:+SERIAL 0 $console_baud}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=ttyS0,9600n8}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -540,10 +628,19 @@ EOF
 # Create USB CRAMFS based image
 function build_usb_cramfs()
 {
-    local usb="$1"
-    local serial="$1" ; shift
+    local usb="$1" ; shift
+    local console="$1" ; shift
     local custom="$1"
-    prepare_cramfs "$custom"
+    local serial=0
+
+    if [ "$console" != "graphic" ] ; then
+	serial=1
+	console_dev=$(extract_console_dev $console)
+	console_baud=$(extract_console_baud $console)
+	console_parity=$(extract_console_parity $console)
+	console_bits=$(extract_console_bits $console)
+    fi
+    prepare_cramfs "$console" "$custom"
     echo "* Creating USB CRAMFS based image"
 
     let vfat_size=${cramfs_size}+$FREE_SPACE
@@ -559,9 +656,9 @@ function build_usb_cramfs()
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 9600}
+${serial:+SERIAL 0 $console_baud}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=ttyS0,9600n8}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -591,13 +688,19 @@ function type_to_name()
 [ -z "$OUTPUT_BASE" ] && OUTPUT_BASE="$PLC_NAME-BootCD-$BOOTCD_VERSION"
 
 for t in $TYPES; do
-    serial=
+    CONSOLE=$CONSOLE_INFO
     tname=`type_to_name $t`
     if [[ "$t" == *_serial ]]; then
-        serial=1
+	[ "$CONSOLE_INFO" == "graphic" ] && CONSOLE="ttyS0:115200"
         t=`echo $t | sed 's/_serial$//'`
     fi
-    build_$t "${OUTPUT_BASE}${tname}" "$serial" "$CUSTOM_DIR"
+    
+    OUTPUTNAME="${OUTPUT_BASE}${tname}"
+    if [ "$CONSOLE" != "graphic" ] ; then
+	CONSOLE_NAME=$(echo $CONSOLE | sed 's,\:,,g')
+	OUTPUTNAME="${OUTPUT_BASE}-serial-${CONSOLE_NAME}${tname}"
+    fi
+    build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR"
 done
 
 exit 0
