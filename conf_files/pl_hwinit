@@ -8,11 +8,8 @@ import time
 
 loadedmodules = None
 
-def modprobe(module, args = None):
-    if args: 
-        ret = os.system("/sbin/modprobe %s %s" % (module, args))
-    else:
-        ret = os.system("/sbin/modprobe %s" % module)
+def modprobe(module, args = ""):
+    ret = os.system("/sbin/modprobe %s %s" % (module, args))
     if os.WEXITSTATUS(ret) == 0:
         globals()['loadedmodules'].write("%s\n" % module)
         return True
