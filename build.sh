@@ -23,7 +23,8 @@ ALL_TYPES="usb iso usb_cramfs iso_cramfs"
 FREE_SPACE=4096
 CUSTOM_DIR=
 OUTPUT_BASE=
-CONSOLE_INFO="graphic"
+DEFAULT_CONSOLE="graphic"
+CONSOLE_INFO=$DEFAULT_CONSOLE
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
 
 usage()
@@ -316,9 +317,9 @@ function build_iso()
     local iso="$1" ; shift
     local console="$1" ; shift
     local custom="$1"
-    local serial=0
+    local serial=
 
-    if [ "$console" != "graphic" ] ; then
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -349,9 +350,9 @@ function build_usb_partition()
     local usb="$1" ; shift
     local console="$1" ; shift
     local custom="$1"
-    local serial=0
+    local serial=
 
-    if [ "$console" != "graphic" ] ; then
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -413,9 +414,9 @@ function build_usb()
     local usb="$1" ; shift
     local console="$1" ; shift
     local custom="$1"
-    local serial=0
+    local serial=
 
-    if [ "$console" != "graphic" ] ; then
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -454,8 +455,8 @@ function prepare_cramfs()
     [ -n "$CRAMFS_PREPARED" ] && return 0
     local console=$1; shift
     local custom=$1; 
-    local serial=0
-    if [ "$console" != "graphic" ] ; then
+    local serial=
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -591,9 +592,9 @@ function build_iso_cramfs()
     local iso="$1" ; shift
     local console="$1" ; shift
     local custom="$1"
-    local serial=0
+    local serial=
 
-    if [ "$console" != "graphic" ] ; then
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -631,9 +632,9 @@ function build_usb_cramfs()
     local usb="$1" ; shift
     local console="$1" ; shift
     local custom="$1"
-    local serial=0
+    local serial=
 
-    if [ "$console" != "graphic" ] ; then
+    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -691,12 +692,14 @@ for t in $TYPES; do
     CONSOLE=$CONSOLE_INFO
     tname=`type_to_name $t`
     if [[ "$t" == *_serial ]]; then
-	[ "$CONSOLE_INFO" == "graphic" ] && CONSOLE="ttyS0:115200"
-        t=`echo $t | sed 's/_serial$//'`
+	if [ "$CONSOLE_INFO" == "$DEFAULT_CONSOLE" ] ; then
+	    CONSOLE="ttyS0:115200"
+	fi
+	t=`echo $t | sed 's/_serial$//'`
     fi
     
     OUTPUTNAME="${OUTPUT_BASE}${tname}"
-    if [ "$CONSOLE" != "graphic" ] ; then
+    if [ "$CONSOLE" != "$DEFAULT_CONSOLE" ] ; then
 	CONSOLE_NAME=$(echo $CONSOLE | sed 's,\:,,g')
 	OUTPUTNAME="${OUTPUT_BASE}-serial-${CONSOLE_NAME}${tname}"
     fi
