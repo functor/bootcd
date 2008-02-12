@@ -17,61 +17,74 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 CONFIGURATION=default
 NODE_CONFIGURATION_FILE=
-TYPES="usb iso"
-ALL_TYPES="usb iso usb_cramfs iso_cramfs"
+DEFAULT_TYPES="usb iso"
 # Leave 4 MB of free space
 FREE_SPACE=4096
 CUSTOM_DIR=
 OUTPUT_BASE=
 DEFAULT_CONSOLE="graphic"
 CONSOLE_INFO=$DEFAULT_CONSOLE
+DEFAULT_SERIAL_CONSOLE="ttyS0:115200"
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+
+ALL_TYPES=""
+for x in iso usb usb_partition; do for s in "" "_serial" ; do for c in "" "_cramfs" ; do
+  t="${x}${c}${s}"
+  case $t in
+      usb_partition_cramfs|usb_partition_cramfs_serial)
+	  # unsupported
+	  ;;
+      *)
+	  ALL_TYPES="$ALL_TYPES $t" ;;
+  esac
+done; done; done
 
 usage()
 {
     echo "Usage: build.sh [OPTION]..."
     echo "    -c name          (Deprecated) Static configuration to use (default: $CONFIGURATION)"
-    echo "    -f planet.cnf    Node to customize CD for (default: none)"
-    echo "    -t 'types'       Build the specified images (default: $TYPES)"
-    echo "                     All known types: $ALL_TYPES"
+    echo "    -f plnode.txt    Node to customize CD for (default: none)"
+    echo "    -t 'types'       Build the specified images (default: $DEFAULT_TYPES)"
+    echo "    -a               Build all known types as listed below"
     echo "    -s console-info  Enable a serial line as console and also bring up getty on that line"
-    echo "                     console-info=devicename:baudrate"
-    echo "    -a               Build all supported images"
+    echo "                     defaults to $DEFAULT_SERIAL_CONSOLE"
+    echo "    -O output-base   The prefix of the generated files (default: PLC_NAME-BootCD-VERSION)"
     echo "    -C custom-dir    Custom directory"
-    echo "    -O output-base   The basename of the generated files (default: PLC_NAME-BootCD-VERSION)"
+    echo "                     can be a full path"
+    echo "    -n               Dry run - mostly for debug/test purposes"
     echo "    -h               This message"
+    echo "All known types: $ALL_TYPES"
     exit 1
 }
 
+# init
+TYPES=""
 # Get options
-while getopts "O:c:f:s:t:C:ah" opt ; do
+while getopts "c:f:t:as:O:C:nh" opt ; do
     case $opt in
     c)
-        CONFIGURATION=$OPTARG
-        ;;
+        CONFIGURATION=$OPTARG ;;
     f)
-        NODE_CONFIGURATION_FILE=$OPTARG
-        ;;
+        NODE_CONFIGURATION_FILE=$OPTARG ;;
     t)
-        TYPES="$OPTARG"
-        ;;
-    C)
-        CUSTOM_DIR="$OPTARG"
-        ;;
-    O)
-        OUTPUT_BASE="$OPTARG"
-        ;;
+        TYPES="$TYPES $OPTARG" ;;
     a)
-        TYPES="$ALL_TYPES"
-        ;;
+        TYPES="$ALL_TYPES" ;;
     s)
-        CONSOLE_INFO="$OPTARG"
-	;;
+        CONSOLE_INFO="$OPTARG" ;;
+    O)
+        OUTPUT_BASE="$OPTARG" ;;
+    C)
+        CUSTOM_DIR="$OPTARG" ;;
+    n)
+	DRY_RUN=true ;;
     h|*)
-        usage
-        ;;
+        usage ;;
     esac
 done
+
+# use default if not set
+[ -z "$TYPES" ] && TYPES="$DEFAULT_TYPES"
 
 # Do not tolerate errors
 set -e
@@ -329,7 +342,7 @@ function build_iso()
 
     # Write isolinux configuration
     cat >$isofs/isolinux.cfg <<EOF
-${serial:+SERIAL 0 115200}
+${serial:+SERIAL 0 ${console_baud}}
 DEFAULT kernel
 APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 DISPLAY pl_version
@@ -528,7 +541,7 @@ EOF
     sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
 
     # modify inittab to have a serial console
-    if [ $serial -eq 1 ] ; then
+    if [ -n "$serial" ] ; then
 	echo "T0:23:respawn:/sbin/agetty -L $console_dev $console_baud vt100" >> etc/inittab
         # and let root log in
 	echo "$console_dev" >> etc/securetty
@@ -689,11 +702,12 @@ function type_to_name()
 [ -z "$OUTPUT_BASE" ] && OUTPUT_BASE="$PLC_NAME-BootCD-$BOOTCD_VERSION"
 
 for t in $TYPES; do
+    arg=$t
     CONSOLE=$CONSOLE_INFO
     tname=`type_to_name $t`
     if [[ "$t" == *_serial ]]; then
 	if [ "$CONSOLE_INFO" == "$DEFAULT_CONSOLE" ] ; then
-	    CONSOLE="ttyS0:115200"
+	    CONSOLE="$DEFAULT_SERIAL_CONSOLE"
 	fi
 	t=`echo $t | sed 's/_serial$//'`
     fi
@@ -703,7 +717,11 @@ for t in $TYPES; do
 	CONSOLE_NAME=$(echo $CONSOLE | sed 's,\:,,g')
 	OUTPUTNAME="${OUTPUT_BASE}-serial-${CONSOLE_NAME}${tname}"
     fi
-    build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR"
+    echo "*** Dealing with type=$arg"
+    echo "* " build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR"
+    if [ ! -n "$DRY_RUN" ] ; then
+	build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR" || true
+    fi
 done
 
 exit 0
