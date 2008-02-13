@@ -199,6 +199,15 @@ for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
     echo "/boot/" >$dir/boot_server_path
 done
 
+# Install old-style boot server configuration files
+# as opposed to what a former comment suggested, 
+# this is still required, somewhere in the bootmanager apparently
+install -D -m 644 $PLC_BOOT_CA_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
+echo "$FULL_VERSION_STRING" >$overlay/usr/bootme/ID
+echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER
+echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER_IP
+echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
+
 # Generate /etc/issue
 echo "* Generating /etc/issue"
 
