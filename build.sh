@@ -22,9 +22,9 @@ DEFAULT_TYPES="usb iso"
 FREE_SPACE=4096
 CUSTOM_DIR=
 OUTPUT_BASE=
-DEFAULT_CONSOLE="graphic"
-CONSOLE_INFO=$DEFAULT_CONSOLE
-DEFAULT_SERIAL_CONSOLE="ttyS0:115200"
+GRAPHIC_CONSOLE="graphic"
+SERIAL_CONSOLE="ttyS0:115200:n:8"
+CONSOLE_INFO=$GRAPHIC_CONSOLE
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
 
 ALL_TYPES=""
@@ -39,6 +39,14 @@ for x in iso usb usb_partition; do for s in "" "_serial" ; do for c in "" "_cram
   esac
 done; done; done
 
+# NOTE
+# the custom-dir feature is designed to let a myplc try/ship a patched bootcd
+# without the need for a full devel environment
+# for example, you would create /root/custom-bootcd/etc/rc.d/init.d/pl_hwinit
+# and run this script with -C /root/custom-bootcd
+# this creates a third .img image of the custom dir, that 'hides' the files from 
+# bootcd.img in the resulting unionfs
+# it seems that this feature has not been used nor tested in a long time, use with care
 usage()
 {
     echo "Usage: build.sh [OPTION]..."
@@ -47,10 +55,14 @@ usage()
     echo "    -t 'types'       Build the specified images (default: $DEFAULT_TYPES)"
     echo "    -a               Build all known types as listed below"
     echo "    -s console-info  Enable a serial line as console and also bring up getty on that line"
-    echo "                     defaults to $DEFAULT_SERIAL_CONSOLE"
+    echo "                     console-info: tty:baud-rate:parity:bits"
+    echo "                     or 'default' shortcut for $SERIAL_CONSOLE"
+    echo "                     Using this is recommended, rather than mentioning 'serial' in a type"
     echo "    -O output-base   The prefix of the generated files (default: PLC_NAME-BootCD-VERSION)"
-    echo "    -C custom-dir    Custom directory"
+    echo "                     useful when multiple types are provided"
     echo "                     can be a full path"
+    echo "    -o output-name   The full name of the generated file"
+    echo "    -C custom-dir    Custom directory"
     echo "    -n               Dry run - mostly for debug/test purposes"
     echo "    -h               This message"
     echo "All known types: $ALL_TYPES"
@@ -60,7 +72,7 @@ usage()
 # init
 TYPES=""
 # Get options
-while getopts "c:f:t:as:O:C:nh" opt ; do
+while getopts "c:f:t:as:O:o:C:nh" opt ; do
     case $opt in
     c)
         CONFIGURATION=$OPTARG ;;
@@ -71,9 +83,13 @@ while getopts "c:f:t:as:O:C:nh" opt ; do
     a)
         TYPES="$ALL_TYPES" ;;
     s)
-        CONSOLE_INFO="$OPTARG" ;;
+        CONSOLE_INFO="$OPTARG" 
+	[ "$CONSOLE_INFO" == "default" ] && CONSOLE_INFO=$SERIAL_CONSOLE
+	;;
     O)
         OUTPUT_BASE="$OPTARG" ;;
+    o)
+        OUTPUT_NAME="$OPTARG" ;;
     C)
         CUSTOM_DIR="$OPTARG" ;;
     n)
@@ -137,7 +153,7 @@ if [ -z "$PLC_BOOT_CA_SSL_CRT" -a -d configurations/$CONFIGURATION ] ; then
     PLC_ROOT_GPG_KEY_PUB=configurations/$CONFIGURATION/$PRIMARY_SERVER_GPG
 fi
 
-FULL_VERSION_STRING="$PLC_NAME BootCD $BOOTCD_VERSION"
+FULL_VERSION_STRING="${PLC_NAME} BootCD ${BOOTCD_VERSION}"
 
 echo "* Building images for $FULL_VERSION_STRING"
 
@@ -332,7 +348,7 @@ function build_iso()
     local custom="$1"
     local serial=
 
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -365,7 +381,7 @@ function build_usb_partition()
     local custom="$1"
     local serial=
 
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -429,7 +445,7 @@ function build_usb()
     local custom="$1"
     local serial=
 
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -469,7 +485,7 @@ function prepare_cramfs()
     local console=$1; shift
     local custom=$1; 
     local serial=
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -607,7 +623,7 @@ function build_iso_cramfs()
     local custom="$1"
     local serial=
 
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -647,7 +663,7 @@ function build_usb_cramfs()
     local custom="$1"
     local serial=
 
-    if [ "$console" != "$DEFAULT_CONSOLE" ] ; then
+    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
 	serial=1
 	console_dev=$(extract_console_dev $console)
 	console_baud=$(extract_console_baud $console)
@@ -689,13 +705,9 @@ function type_to_name()
     echo $1 | sed '
         s/usb$/.usb/;
         s/usb_partition$/-partition.usb/;
-        s/usb_serial$/-serial.usb/;
         s/iso$/.iso/;
-        s/iso_serial$/-serial.iso/;
         s/usb_cramfs$/-cramfs.usb/;
-        s/usb_cramfs_serial$/-cramfs-serial.usb/;
         s/iso_cramfs$/-cramfs.iso/;
-        s/iso_cramfs_serial$/-cramfs-serial.iso/;
         '
 }
 
@@ -703,24 +715,36 @@ function type_to_name()
 
 for t in $TYPES; do
     arg=$t
-    CONSOLE=$CONSOLE_INFO
-    tname=`type_to_name $t`
-    if [[ "$t" == *_serial ]]; then
-	if [ "$CONSOLE_INFO" == "$DEFAULT_CONSOLE" ] ; then
-	    CONSOLE="$DEFAULT_SERIAL_CONSOLE"
+    console=$CONSOLE_INFO
+
+    # figure if this is a serial image (can be specified in the type or with -s)
+    if  [[ "$t" == *serial* || "$console" != "$GRAPHIC_CONSOLE" ]]; then
+	# remove serial from type
+	t=`echo $t | sed 's/_serial//'`
+	# check console
+	[ "$console" == "$GRAPHIC_CONSOLE" ] && console="$SERIAL_CONSOLE"
+	# compute filename part
+	if [ "$console" == "$SERIAL_CONSOLE" ] ; then
+	    serial="-serial"
+	else
+	    serial="-serial-$(echo $console | sed -e 's,:,,g')"
 	fi
-	t=`echo $t | sed 's/_serial$//'`
+    else
+	serial=""
     fi
     
-    OUTPUTNAME="${OUTPUT_BASE}${tname}"
-    if [ "$CONSOLE" != "$DEFAULT_CONSOLE" ] ; then
-	CONSOLE_NAME=$(echo $CONSOLE | sed 's,\:,,g')
-	OUTPUTNAME="${OUTPUT_BASE}-serial-${CONSOLE_NAME}${tname}"
+    tname=`type_to_name $t`
+    # if -o is specified (as it has no default)
+    if [ -n "$OUTPUT_NAME" ] ; then
+	output=$OUTPUT_NAME
+    else
+	output="${OUTPUT_BASE}${serial}${tname}"
     fi
+
     echo "*** Dealing with type=$arg"
-    echo "* " build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR"
+    echo '*' build_$t "$output" "$console" "$CUSTOM_DIR"
     if [ ! -n "$DRY_RUN" ] ; then
-	build_$t "$OUTPUTNAME" "$CONSOLE" "$CUSTOM_DIR" || true
+	build_$t "$output" "$console" "$CUSTOM_DIR" 
     fi
 done
 
