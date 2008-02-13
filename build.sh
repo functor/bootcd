@@ -1,10 +1,7 @@
 #!/bin/bash
 #
 # Builds custom BootCD ISO and USB images in the current
-# directory. For backward compatibility, if an old-style static
-# configuration is specified, that configuration file will be parsed
-# instead of the current PLC configuration in
-# /etc/planetlab/plc_config.
+# directory. 
 #
 # Aaron Klingaman <alk@absarokasoft.com>
 # Mark Huang <mlhuang@cs.princeton.edu>
@@ -50,7 +47,6 @@ done; done; done
 usage()
 {
     echo "Usage: build.sh [OPTION]..."
-    echo "    -c name          (Deprecated) Static configuration to use (default: $CONFIGURATION)"
     echo "    -f plnode.txt    Node to customize CD for (default: none)"
     echo "    -t 'types'       Build the specified images (default: $DEFAULT_TYPES)"
     echo "    -a               Build all known types as listed below"
@@ -72,10 +68,8 @@ usage()
 # init
 TYPES=""
 # Get options
-while getopts "c:f:t:as:O:o:C:nh" opt ; do
+while getopts "f:t:as:O:o:C:nh" opt ; do
     case $opt in
-    c)
-        CONFIGURATION=$OPTARG ;;
     f)
         NODE_CONFIGURATION_FILE=$OPTARG ;;
     t)
@@ -126,31 +120,6 @@ BOOTCD_VERSION=$(cat build/version.txt)
 if [ -f /etc/planetlab/plc_config ] ; then
     # Source PLC configuration
     . /etc/planetlab/plc_config
-fi
-
-### This support for backwards compatibility can be taken out in the
-### future. RC1 based MyPLCs set $PLC_BOOT_SSL_CRT in the plc_config
-### file, but >=RC2 based bootcd assumes that $PLC_BOOT_CA_SSL_CRT is
-### set.
-if [ -z "$PLC_BOOT_CA_SSL_CRT" -a ! -z "$PLC_BOOT_SSL_CRT" ] ; then
-    PLC_BOOT_CA_SSL_CRT=$PLC_BOOT_SSL_CRT
-fi
-
-# If PLC configuration is not valid, try a static configuration
-if [ -z "$PLC_BOOT_CA_SSL_CRT" -a -d configurations/$CONFIGURATION ] ; then
-    # (Deprecated) Source static configuration
-    . configurations/$CONFIGURATION/configuration
-    PLC_NAME="PlanetLab"
-    PLC_MAIL_SUPPORT_ADDRESS="support@planet-lab.org"
-    PLC_WWW_HOST="www.planet-lab.org"
-    PLC_WWW_PORT=80
-    if [ -n "$EXTRA_VERSION" ] ; then
-    BOOTCD_VERSION="$BOOTCD_VERSION $EXTRA_VERSION"
-    fi
-    PLC_BOOT_HOST=$PRIMARY_SERVER
-    PLC_BOOT_SSL_PORT=$PRIMARY_SERVER_PORT
-    PLC_BOOT_CA_SSL_CRT=configurations/$CONFIGURATION/$PRIMARY_SERVER_CERT
-    PLC_ROOT_GPG_KEY_PUB=configurations/$CONFIGURATION/$PRIMARY_SERVER_GPG
 fi
 
 FULL_VERSION_STRING="${PLC_NAME} BootCD ${BOOTCD_VERSION}"
@@ -229,13 +198,6 @@ for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
     echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
     echo "/boot/" >$dir/boot_server_path
 done
-
-# (Deprecated) Install old-style boot server configuration files
-install -D -m 644 $PLC_BOOT_CA_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
-echo "$FULL_VERSION_STRING" >$overlay/usr/bootme/ID
-echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER
-echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER_IP
-echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
 
 # Generate /etc/issue
 echo "* Generating /etc/issue"
