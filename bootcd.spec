@@ -5,7 +5,7 @@
 
 %define name bootcd
 %define version 3.4
-%define taglevel 3
+%define taglevel 4
 
 %define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
@@ -81,6 +81,11 @@ fi
 %{_datadir}/%{name}
 
 %changelog
+* Thu Feb 14 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-3.4-3 bootcd-3.4-4
+- build.sh support for -s <console_spec> (recommended vs using type)
+- build.sh cleanup - usage clearer wrt types - removed old code
+- fixed modprobe with args in pl_hwinit
+
 * Thu Jan 31 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-3.4-2 bootcd-3.4-3
 - load floppy with modprobe flags
 - support for creating a usb partition
