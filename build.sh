@@ -337,6 +337,11 @@ PROMPT 0
 TIMEOUT 40
 EOF
 
+    # write kargs.txt with additional args that should be executed by kexec to production mode
+    cat >$isofs/kargs.txt <<EOF
+${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+EOF
+
     # Create ISO image
     echo "* Creating ISO image"
     mkisofs -o "$iso" \
@@ -425,6 +430,14 @@ function build_usb()
     fi
 
     mkfs.vfat -C "$usb" $(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
+
+    # write kargs.txt with additional args that should be executed by kexec to production mode
+    tmp="${BUILDTMP}/kargs.txt"
+    cat >$tmp <<EOF
+${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}
+EOF
+    mcopy -i "$usb" "$tmp" ::/kargs.txt
+    rm -f "$tmp"
 
     # Populate it
     echo -n " populating USB image... "
@@ -617,6 +630,11 @@ PROMPT 0
 TIMEOUT 40
 EOF
 
+    # write kargs.txt with additional args that should be executed by kexec to production mode
+    cat >$tmp/kargs.txt <<EOF
+${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+EOF
+
     cp ${BUILDTMP}/cramfs.img $tmp
     mkisofs -o "$iso" \
         $MKISOFS_OPTS \
@@ -649,6 +667,14 @@ function build_usb_cramfs()
     # Make VFAT filesystem for USB
     mkfs.vfat -C "$usb" $vfat_size
 
+    # write kargs.txt with additional args that should be executed by kexec to production mode
+    tmp="${BUILDTMP}/kargs.txt"
+    cat >$tmp <<EOF
+${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+EOF
+    mcopy -i "$usb" "$tmp" ::/kargs.txt
+    rm -f "$tmp"
+
     # Populate it
     echo "* Populating USB with overlay images and cramfs"
     mcopy -bsQ -i "$usb" $isofs/kernel $isofs/pl_version ::/
@@ -664,6 +690,7 @@ DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
 EOF
+
     mcopy -bsQ -i "$usb" "$tmp" ::/syslinux.cfg
     rm -f "$tmp"
 
