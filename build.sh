@@ -434,7 +434,7 @@ function build_usb()
     # write kargs.txt with additional args that should be executed by kexec to production mode
     tmp="${BUILDTMP}/kargs.txt"
     cat >$tmp <<EOF
-${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}
+${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 EOF
     mcopy -i "$usb" "$tmp" ::/kargs.txt
     rm -f "$tmp"
