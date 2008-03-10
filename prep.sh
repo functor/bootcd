@@ -29,8 +29,7 @@ export PATH
 . build.common
 
 # pldistro expected as $1 - defaults to planetlab
-pldistro=planetlab
-[ -n "$@" ] && pldistro=$1
+pldistro=$1 ; shift
 
 # Packages to install, junk and precious : see build/<pldistro>/bootcd.pkgs
 
@@ -45,8 +44,10 @@ install -d -m 755 $bootcd
 rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/version.txt
 
 # Install base system
+pl_root_makedevs $bootcd
 pkgsfile=$(pl_locateDistroFile ../build/ $pldistro bootcd.pkgs) 
-pl_root_setup_chroot $bootcd -k -f $pkgsfile 
+pl_root_mkfedora $bootcd $pldistro $pkgsfile
+pl_root_tune_image $bootcd
 
 # Install ipnmac (for SuperMicro machines with IPMI)
 echo "* Installing IPMI utilities"
