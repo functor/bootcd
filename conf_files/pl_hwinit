@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys
-import pypciscan
+import pypci
 import pypcimap
 import os
 import time
@@ -29,7 +29,7 @@ def main(argv):
 
     pcimap = pypcimap.PCIMap(path)
     print "pl_hwinit: loading applicable modules"
-    devices = pypciscan.get_devices()
+    devices = pypci.get_devices()
     storage_devices = 0
     network_devices = 0
     missing = []
