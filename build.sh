@@ -12,29 +12,108 @@
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
-CONFIGURATION=default
-NODE_CONFIGURATION_FILE=
+# defaults
 DEFAULT_TYPES="usb iso"
 # Leave 4 MB of free space
-FREE_SPACE=4096
-CUSTOM_DIR=
-OUTPUT_BASE=
 GRAPHIC_CONSOLE="graphic"
 SERIAL_CONSOLE="ttyS0:115200:n:8"
 CONSOLE_INFO=$GRAPHIC_CONSOLE
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+FREE_SPACE=4096
+
+# command-line settable args
+NODE_CONFIGURATION_FILE=
+CUSTOM_DIR=
+OUTPUT_BASE=
+DRY_RUN=""
+OUTPUT_NAME=""
+TYPES=""
+
+# various globals
+BUILDTMP=""
+FULL_VERSION_STRING=""
+ISOREF=""
+ISOFS=""
+OVERLAY=""
+IS_SERIAL=""
+console_dev=""
+console_baud=""
+console_spec=""
+console_serial_line=""
+
+
+#################### compute all supported types
+# removing support for serial in the type
+# this is because kargs.txt goes in the overlay, that is computed only once
+# so we cannot handle serial and graphic modes within the same invokation of this script
 
 ALL_TYPES=""
-for x in iso usb usb_partition; do for s in "" "_serial" ; do for c in "" "_cramfs" ; do
-  t="${x}${c}${s}"
+for x in iso usb usb_partition; do for c in "" "_cramfs" ; do
+  t="${x}${c}"
   case $t in
-      usb_partition_cramfs|usb_partition_cramfs_serial)
+      usb_partition_cramfs)
 	  # unsupported
 	  ;;
       *)
 	  ALL_TYPES="$ALL_TYPES $t" ;;
   esac
-done; done; done
+done; done
+
+#################### cleanup utilities
+declare -a _CLEANUPS=()
+function do_cleanup() {
+    cd / ; for i in "${_CLEANUPS[@]}"; do $i ; done
+}
+function push_cleanup() {
+    _CLEANUPS=( "${_CLEANUPS[@]}" "$*" )
+}
+function pop_cleanup() {
+    unset _CLEANUPS[$((${#_CLEANUPS[@]} - 1))]
+}
+
+#################### initialization
+function init_and_check () {
+
+    # Change to our source directory
+    local srcdir=$(cd $(dirname $0) && pwd -P)
+    pushd $srcdir
+
+    # Root of the isofs
+    ISOREF=$PWD/build
+
+    # The reference image is expected to have been built by prep.sh (see .spec)
+    # we disable the initial logic that called prep.sh if that was not the case
+    # this is because prep.sh needs to know pldistro 
+    if [ ! -f $ISOREF/isofs/bootcd.img -o ! -f $ISOREF/version.txt ] ; then
+	echo "You have to run prep.sh prior to calling $0 - exiting"
+	exit 1
+    fi
+
+    # build/version.txt written by prep.sh
+    BOOTCD_VERSION=$(cat build/version.txt)
+
+    if [ -f /etc/planetlab/plc_config ] ; then
+        # Source PLC configuration
+	. /etc/planetlab/plc_config
+    fi
+
+    # From within a myplc chroot /usr/tmp is too small 
+    # to build all possible images, whereas /data is part of the host
+    # filesystem and usually has sufficient space.  What we
+    # should do is check whether the expected amount of space
+    # is available.
+    BUILDTMP=/usr/tmp
+    if [ -d /data/tmp ] ; then
+	isreadonly=$(mktemp /data/tmp/isreadonly.XXXXXX || /bin/true)
+	if [ -n "$isreadonly" ] ; then
+            rm -f "$isreadonly"
+            BUILDTMP=/data/tmp
+	fi
+    fi
+
+    FULL_VERSION_STRING="${PLC_NAME} BootCD ${BOOTCD_VERSION}"
+
+}
 
 # NOTE
 # the custom-dir feature is designed to let a myplc try/ship a patched bootcd
@@ -44,16 +123,17 @@ done; done; done
 # this creates a third .img image of the custom dir, that 'hides' the files from 
 # bootcd.img in the resulting unionfs
 # it seems that this feature has not been used nor tested in a long time, use with care
-usage()
-{
+
+usage() {
     echo "Usage: build.sh [OPTION]..."
     echo "    -f plnode.txt    Node to customize CD for (default: none)"
     echo "    -t 'types'       Build the specified images (default: $DEFAULT_TYPES)"
+    echo "                     NOTE: mentioning 'serial' as part of the type is not supported anymore"
     echo "    -a               Build all known types as listed below"
     echo "    -s console-info  Enable a serial line as console and also bring up getty on that line"
     echo "                     console-info: tty:baud-rate:parity:bits"
     echo "                     or 'default' shortcut for $SERIAL_CONSOLE"
-    echo "                     Using this is recommended, rather than mentioning 'serial' in a type"
+    echo "    -S               equivalent to -s default"
     echo "    -O output-base   The prefix of the generated files (default: PLC_NAME-BootCD-VERSION)"
     echo "                     useful when multiple types are provided"
     echo "                     can be a full path"
@@ -65,162 +145,134 @@ usage()
     exit 1
 }
 
-# init
-TYPES=""
-# Get options
-while getopts "f:t:as:O:o:C:nh" opt ; do
-    case $opt in
-    f)
-        NODE_CONFIGURATION_FILE=$OPTARG ;;
-    t)
-        TYPES="$TYPES $OPTARG" ;;
-    a)
-        TYPES="$ALL_TYPES" ;;
-    s)
-        CONSOLE_INFO="$OPTARG" 
-	[ "$CONSOLE_INFO" == "default" ] && CONSOLE_INFO=$SERIAL_CONSOLE
-	;;
-    O)
-        OUTPUT_BASE="$OPTARG" ;;
-    o)
-        OUTPUT_NAME="$OPTARG" ;;
-    C)
-        CUSTOM_DIR="$OPTARG" ;;
-    n)
-	DRY_RUN=true ;;
-    h|*)
-        usage ;;
-    esac
-done
+#################### 
+function parse_command_line () {
 
-# use default if not set
-[ -z "$TYPES" ] && TYPES="$DEFAULT_TYPES"
-
-# Do not tolerate errors
-set -e
-
-# Change to our source directory
-srcdir=$(cd $(dirname $0) && pwd -P)
-pushd $srcdir
-
-# Root of the isofs
-isofs=$PWD/build/isofs
-
-# The reference image is expected to have been built by prep.sh (see .spec)
-# we disable the initial logic that called prep.sh if that was not the case
-# this is because prep.sh needs to know pldistro 
-if [ ! -f $isofs/bootcd.img -o ! -f build/version.txt ] ; then
-    echo "You have to run prep.sh prior to calling $0 - exiting"
-    exit 1
-fi
-
-# build/version.txt written by prep.sh
-BOOTCD_VERSION=$(cat build/version.txt)
-
-if [ -f /etc/planetlab/plc_config ] ; then
-    # Source PLC configuration
-    . /etc/planetlab/plc_config
-fi
-
-FULL_VERSION_STRING="${PLC_NAME} BootCD ${BOOTCD_VERSION}"
-
-echo "* Building images for $FULL_VERSION_STRING"
-
-# From within a myplc chroot /usr/tmp is too small 
-# to build all possible images, whereas /data is part of the host
-# filesystem and usually has sufficient space.  What we
-# should do is check whether the expected amount of space
-# is available.
-BUILDTMP=/usr/tmp
-if [ -d /data/tmp ] ; then
-    isreadonly=$(mktemp /data/tmp/isreadonly.XXXXXX || /bin/true)
-    if [ -n "$isreadonly" ] ; then
-        rm -f "$isreadonly"
-        BUILDTMP=/data/tmp
-    fi
-fi
-
-declare -a _CLEANUPS=()
-function do_cleanup()
-{
-    cd /
-    for i in "${_CLEANUPS[@]}"; do
-        $i
+    # init
+    TYPES=""
+    # Get options
+    while getopts "f:t:as:SO:o:C:nh" opt ; do
+	case $opt in
+	    f) NODE_CONFIGURATION_FILE=$OPTARG ;;
+	    t) TYPES="$TYPES $OPTARG" ;;
+	    a) TYPES="$ALL_TYPES" ;;
+	    s) CONSOLE_INFO="$OPTARG" ;;
+	    S) CONSOLE_INFO=$SERIAL_CONSOLE ;;
+	    O) OUTPUT_BASE="$OPTARG" ;;
+	    o) OUTPUT_NAME="$OPTARG" ;;
+	    C) CUSTOM_DIR="$OPTARG" ;;
+	    n) DRY_RUN=true ;;
+	    h|*) usage ;;
+	esac
     done
+
+    # use defaults if not set
+    [ -z "$TYPES" ] && TYPES="$DEFAULT_TYPES"
+    [ "$CONSOLE_INFO" == "default" ] && CONSOLE_INFO=$SERIAL_CONSOLE
+
+    # check TYPES 
+    local matcher="XXX$(echo $ALL_TYPES | sed -e 's,\W,XXX,g')XXX"
+    for t in $TYPES; do
+	echo Checking type $t
+	echo $matcher | grep XXX${t}XXX &> /dev/null
+	if [ "$?" != 0 ] ; then
+	    echo Unknown type $t
+	    usage
+	fi
+    done
+
 }
-function push_cleanup()
-{
-    _CLEANUPS=( "${_CLEANUPS[@]}" "$*" )
+
+####################
+function init_serial () {
+    local console=$1; shift
+    if [ "$console" == "$GRAPHIC_CONSOLE" ] ; then
+	IS_SERIAL=
+	console_spec=""
+	echo "Standard, graphic, non-serial mode"
+    else
+	IS_SERIAL=true
+	console_dev=$(echo "$console" | awk -F: ' {print $1}')
+	console_baud=$(echo "$console" | awk -F: ' {print $2}')
+	[ -z "$console_baud" ] && console_baud="115200"
+	local console_parity=$(echo "$console" | awk -F: ' {print $3}')
+	[ -z "$console_parity" ] && console_parity="n"
+	local console_bits=$(echo "$console" | awk -F: ' {print $4}')
+	[ -z "$console_bits" ] && console_bits="8"
+	console_spec="console=${console_dev},${console_baud}${console_parity}${console_bits}"
+	local tty_nb=$(echo $console_dev | sed -e 's,[a-zA-Z],,g')
+	console_serial_line="SERIAL ${tty_nb} ${console_baud}"
+	echo "Serial mode"
+	echo "console_serial_line=${console_serial_line}"
+	echo "console_spec=${console_spec}"
+    fi
 }
-function pop_cleanup()
-{
-    unset _CLEANUPS[$((${#_CLEANUPS[@]} - 1))]
-}
 
-trap "do_cleanup" ERR INT EXIT
+#################### run once : build the overlay image
+function build_overlay () {
 
-BUILDTMP=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
-push_cleanup rm -fr "${BUILDTMP}"
-mkdir "${BUILDTMP}/isofs"
-for i in "$isofs"/{bootcd.img,kernel}; do
-    ln -s "$i" "${BUILDTMP}/isofs"
-done
-cp "/usr/lib/syslinux/isolinux.bin" "${BUILDTMP}/isofs"
-isofs="${BUILDTMP}/isofs"
+    BUILDTMP=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
+    push_cleanup rm -fr "${BUILDTMP}"
+    mkdir "${BUILDTMP}/isofs"
+    for i in "$ISOREF"/isofs/{bootcd.img,kernel}; do
+	ln -s "$i" "${BUILDTMP}/isofs"
+    done
+    cp "/usr/lib/syslinux/isolinux.bin" "${BUILDTMP}/isofs"
+    ISOFS="${BUILDTMP}/isofs"
 
-# Root of the ISO and USB images
-echo "* Populating root filesystem..."
-overlay="${BUILDTMP}/overlay"
-install -d -m 755 $overlay
-push_cleanup rm -fr $overlay
+    # Root of the ISO and USB images
+    echo "* Populating root filesystem..."
+    OVERLAY="${BUILDTMP}/overlay"
+    install -d -m 755 $OVERLAY
+    push_cleanup rm -fr $OVERLAY
 
-# Create version files
-echo "* Creating version files"
+    # Create version files
+    echo "* Creating version files"
 
-# Boot Manager compares pl_version in both places to make sure that
-# the right CD is mounted. We used to boot from an initrd and mount
-# the CD on /usr. Now we just run everything out of the initrd.
-for file in $overlay/pl_version $overlay/usr/isolinux/pl_version ; do
-    mkdir -p $(dirname $file)
-    echo "$FULL_VERSION_STRING" >$file
-done
+    # Boot Manager compares pl_version in both places to make sure that
+    # the right CD is mounted. We used to boot from an initrd and mount
+    # the CD on /usr. Now we just run everything out of the initrd.
+    for file in $OVERLAY/pl_version $OVERLAY/usr/isolinux/pl_version ; do
+	mkdir -p $(dirname $file)
+	echo "$FULL_VERSION_STRING" >$file
+    done
 
-# Install boot server configuration files
-echo "* Installing boot server configuration files"
+    # Install boot server configuration files
+    echo "* Installing boot server configuration files"
 
-# We always intended to bring up and support backup boot servers,
-# but never got around to it. Just install the same parameters for
-# both for now.
-for dir in $overlay/usr/boot $overlay/usr/boot/backup ; do
-    install -D -m 644 $PLC_BOOT_CA_SSL_CRT $dir/cacert.pem
-    install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
-    echo "$PLC_BOOT_HOST" >$dir/boot_server
-    echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
-    echo "/boot/" >$dir/boot_server_path
-done
+    # We always intended to bring up and support backup boot servers,
+    # but never got around to it. Just install the same parameters for
+    # both for now.
+    for dir in $OVERLAY/usr/boot $OVERLAY/usr/boot/backup ; do
+	install -D -m 644 $PLC_BOOT_CA_SSL_CRT $dir/cacert.pem
+	install -D -m 644 $PLC_ROOT_GPG_KEY_PUB $dir/pubring.gpg
+	echo "$PLC_BOOT_HOST" >$dir/boot_server
+	echo "$PLC_BOOT_SSL_PORT" >$dir/boot_server_port
+	echo "/boot/" >$dir/boot_server_path
+    done
 
-# Install old-style boot server configuration files
-# as opposed to what a former comment suggested, 
-# this is still required, somewhere in the bootmanager apparently
-install -D -m 644 $PLC_BOOT_CA_SSL_CRT $overlay/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
-echo "$FULL_VERSION_STRING" >$overlay/usr/bootme/ID
-echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER
-echo "$PLC_BOOT_HOST" >$overlay/usr/bootme/BOOTSERVER_IP
-echo "$PLC_BOOT_SSL_PORT" >$overlay/usr/bootme/BOOTPORT
+    # Install old-style boot server configuration files
+    # as opposed to what a former comment suggested, 
+    # this is still required, somewhere in the bootmanager apparently
+    install -D -m 644 $PLC_BOOT_CA_SSL_CRT $OVERLAY/usr/bootme/cacert/$PLC_BOOT_HOST/cacert.pem
+    echo "$FULL_VERSION_STRING" >$OVERLAY/usr/bootme/ID
+    echo "$PLC_BOOT_HOST" >$OVERLAY/usr/bootme/BOOTSERVER
+    echo "$PLC_BOOT_HOST" >$OVERLAY/usr/bootme/BOOTSERVER_IP
+    echo "$PLC_BOOT_SSL_PORT" >$OVERLAY/usr/bootme/BOOTPORT
 
-# Generate /etc/issue
-echo "* Generating /etc/issue"
+    # Generate /etc/issue
+    echo "* Generating /etc/issue"
 
-if [ "$PLC_WWW_PORT" = "443" ] ; then
-    PLC_WWW_URL="https://$PLC_WWW_HOST/"
-elif [ "$PLC_WWW_PORT" != "80" ] ; then
-    PLC_WWW_URL="http://$PLC_WWW_HOST:$PLC_WWW_PORT/"
-else
-    PLC_WWW_URL="http://$PLC_WWW_HOST/"
-fi
+    if [ "$PLC_WWW_PORT" = "443" ] ; then
+	PLC_WWW_URL="https://$PLC_WWW_HOST/"
+    elif [ "$PLC_WWW_PORT" != "80" ] ; then
+	PLC_WWW_URL="http://$PLC_WWW_HOST:$PLC_WWW_PORT/"
+    else
+	PLC_WWW_URL="http://$PLC_WWW_HOST/"
+    fi
 
-mkdir -p $overlay/etc
-cat >$overlay/etc/issue <<EOF
+    mkdir -p $OVERLAY/etc
+    cat >$OVERLAY/etc/issue <<EOF
 $FULL_VERSION_STRING
 $PLC_NAME Node: \n
 Kernel \r on an \m
@@ -236,136 +288,84 @@ password of the default $PLC_NAME Central administrator account at the
 time that this CD was created.
 
 EOF
+    
+    # Set root password
+    echo "* Setting root password"
 
-# Set root password
-echo "* Setting root password"
-
-if [ -z "$ROOT_PASSWORD" ] ; then
-    # Generate an encrypted password with crypt() if not defined
-    # in a static configuration.
-    ROOT_PASSWORD=$(python <<EOF
+    if [ -z "$ROOT_PASSWORD" ] ; then
+        # Generate an encrypted password with crypt() if not defined
+        # in a static configuration.
+	ROOT_PASSWORD=$(python <<EOF
 import crypt, random, string
 salt = [random.choice(string.letters + string.digits + "./") for i in range(0,8)]
 print crypt.crypt('$PLC_ROOT_PASSWORD', '\$1\$' + "".join(salt) + '\$')
 EOF
 )
-fi
-
-# build/passwd copied out by prep.sh
-sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" build/passwd \
-    >$overlay/etc/passwd
-
-# Install node configuration file (e.g., if node has no floppy disk or USB slot)
-if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
-    echo "* Installing node configuration file $NODE_CONFIGURATION_FILE -> /usr/boot/plnode.txt of the bootcd image"
-    install -D -m 644 $NODE_CONFIGURATION_FILE $overlay/usr/boot/plnode.txt
-fi
-
-# Pack overlay files into a compressed archive
-echo "* Compressing overlay image"
-(cd $overlay && find . | cpio --quiet -c -o) | gzip -9 >$isofs/overlay.img
-
-rm -rf $overlay
-pop_cleanup
-
-if [ -n "$CUSTOM_DIR" ]; then
-    echo "* Compressing custom image"
-    (cd "$CUSTOM_DIR" && find . | cpio --quiet -c -o) | gzip -9 >$isofs/custom.img
-fi
-
-# Calculate ramdisk size (total uncompressed size of both archives)
-ramdisk_size=$(gzip -l $isofs/bootcd.img $isofs/overlay.img ${CUSTOM_DIR:+$isofs/custom.img} | tail -1 | awk '{ print $2; }') # bytes
-ramdisk_size=$((($ramdisk_size + 1023) / 1024)) # kilobytes
-
-echo "$FULL_VERSION_STRING" >$isofs/pl_version
-
-popd
-
-function extract_console_dev()
-{
-    local console="$1"
-    dev=$(echo $console| awk -F: ' {print $1}')
-    echo $dev
-}
-
-function extract_console_baud()
-{
-    local console="$1"
-    baud=$(echo $console| awk -F: ' {print $2}')
-    [ -z "$baud" ] && baud="115200"
-    echo $baud
-}
-
-function extract_console_parity()
-{
-    local console="$1"
-    parity=$(echo $console| awk -F: ' {print $3}')
-    [ -z "$parity" ] && parity="n"
-    echo $parity
-}
-
-function extract_console_bits()
-{
-    local console="$1"
-    bits=$(echo $console| awk -F: ' {print $4}')
-    [ -z "$bits" ] && bits="8"
-    echo $bits
-}
-
-function build_iso()
-{
-    local iso="$1" ; shift
-    local console="$1" ; shift
-    local custom="$1"
-    local serial=
-
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-	console_parity=$(extract_console_parity $console)
-	console_bits=$(extract_console_bits $console)
     fi
 
+    # build/passwd copied out by prep.sh
+    sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" build/passwd >$OVERLAY/etc/passwd
+
+    # Install node configuration file (e.g., if node has no floppy disk or USB slot)
+    if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
+	echo "* Installing node configuration file $NODE_CONFIGURATION_FILE -> /usr/boot/plnode.txt of the bootcd image"
+	install -D -m 644 $NODE_CONFIGURATION_FILE $OVERLAY/usr/boot/plnode.txt
+    fi
+
+    if [ -n "$IS_SERIAL" ] ; then
+	echo "${console_spec}" > $OVERLAY/kargs.txt
+    fi
+
+    # Pack overlay files into a compressed archive
+    echo "* Compressing overlay image"
+    (cd $OVERLAY && find . | cpio --quiet -c -o) | gzip -9 >$ISOFS/overlay.img
+
+    rm -rf $OVERLAY
+    pop_cleanup
+
+    if [ -n "$CUSTOM_DIR" ]; then
+	echo "* Compressing custom image"
+	(cd "$CUSTOM_DIR" && find . | cpio --quiet -c -o) | gzip -9 >$ISOFS/custom.img
+    fi
+
+    # Calculate ramdisk size (total uncompressed size of both archives)
+    ramdisk_size=$(gzip -l $ISOFS/bootcd.img $ISOFS/overlay.img ${CUSTOM_DIR:+$ISOFS/custom.img} | tail -1 | awk '{ print $2; }') # bytes
+    ramdisk_size=$((($ramdisk_size + 1023) / 1024)) # kilobytes
+
+    echo "$FULL_VERSION_STRING" >$ISOFS/pl_version
+
+    popd
+}
+
+#################### plain ISO
+function build_iso() {
+    local iso="$1" ; shift
+    local custom="$1"
+
     # Write isolinux configuration
-    cat >$isofs/isolinux.cfg <<EOF
-${serial:+SERIAL 0 ${console_baud}}
+    cat >$ISOFS/isolinux.cfg <<EOF
+${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${console_spec}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
-EOF
-
-    # write kargs.txt with additional args that should be executed by kexec to production mode
-    cat >$isofs/kargs.txt <<EOF
-${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 EOF
 
     # Create ISO image
     echo "* Creating ISO image"
     mkisofs -o "$iso" \
         $MKISOFS_OPTS \
-        $isofs
+        $ISOFS
 }
 
-function build_usb_partition()
-{
+#################### USB with partitions
+function build_usb_partition() {
     echo -n "* Creating USB image with partitions..."
     local usb="$1" ; shift
-    local console="$1" ; shift
     local custom="$1"
-    local serial=
 
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-	console_parity=$(extract_console_parity $console)
-	console_bits=$(extract_console_bits $console)
-    fi
-
-    local size=$(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
+    local size=$(($(du -Lsk $ISOFS | awk '{ print $1; }') + $FREE_SPACE))
     size=$(( $size / 1024 ))
 
     local heads=64
@@ -389,14 +389,14 @@ EOF
 
     ### COPIED FROM build_usb() below!!!!
     echo -n " populating USB image... "
-    mcopy -bsQ -i "$usb" "$isofs"/* z:/
+    mcopy -bsQ -i "$usb" "$ISOFS"/* z:/
 	
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 ${console_baud}}
+${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${console_spec}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -412,43 +412,24 @@ EOF
 
 }
 
-# Create USB image
-function build_usb()
-{
+#################### plain USB
+function build_usb() {
     echo -n "* Creating USB image... "
     local usb="$1" ; shift
-    local console="$1" ; shift
     local custom="$1"
-    local serial=
 
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-	console_parity=$(extract_console_parity $console)
-	console_bits=$(extract_console_bits $console)
-    fi
-
-    mkfs.vfat -C "$usb" $(($(du -Lsk $isofs | awk '{ print $1; }') + $FREE_SPACE))
-
-    # write kargs.txt with additional args that should be executed by kexec to production mode
-    tmp="${BUILDTMP}/kargs.txt"
-    cat >$tmp <<EOF
-${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
-EOF
-    mcopy -i "$usb" "$tmp" ::/kargs.txt
-    rm -f "$tmp"
+    mkfs.vfat -C "$usb" $(($(du -Lsk $ISOFS | awk '{ print $1; }') + $FREE_SPACE))
 
     # Populate it
     echo -n " populating USB image... "
-    mcopy -bsQ -i "$usb" "$isofs"/* ::/
+    mcopy -bsQ -i "$usb" "$ISOFS"/* ::/
 
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 $console_baud}
+${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${console_spec}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -461,29 +442,20 @@ EOF
     syslinux "$usb"
 }
 
-
-# Setup CRAMFS related support
-function prepare_cramfs()
-{
+#################### utility to setup CRAMFS related support
+function prepare_cramfs() {
     [ -n "$CRAMFS_PREPARED" ] && return 0
-    local console=$1; shift
     local custom=$1; 
-    local serial=
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-    fi
 
     echo "* Setting up CRAMFS-based images"
     local tmp="${BUILDTMP}/cramfs-tree"
     mkdir -p "$tmp"
     push_cleanup rm -rf $tmp
     pushd $tmp
-    gzip -d -c $isofs/bootcd.img     | cpio -diu
-    gzip -d -c $isofs/overlay.img    | cpio -diu
+    gzip -d -c $ISOFS/bootcd.img     | cpio -diu
+    gzip -d -c $ISOFS/overlay.img    | cpio -diu
     [ -n "$custom" ] && \
-        gzip -d -c $isofs/custom.img | cpio -diu
+        gzip -d -c $ISOFS/custom.img | cpio -diu
 
     # clean out unnecessary rpm lib
     echo "* clearing var/lib/rpm/*"
@@ -599,40 +571,25 @@ EOF
     pop_cleanup
 }
 
-# Create ISO CRAMFS image
-function build_iso_cramfs()
-{
+#################### Create ISO CRAMFS image
+function build_iso_cramfs() {
     local iso="$1" ; shift
-    local console="$1" ; shift
     local custom="$1"
-    local serial=
 
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-	console_parity=$(extract_console_parity $console)
-	console_bits=$(extract_console_bits $console)
-    fi
-    prepare_cramfs "$console" "$custom"
+    prepare_cramfs "$custom"
     echo "* Creating ISO CRAMFS-based image"
 
     local tmp="${BUILDTMP}/cramfs-iso"
     mkdir -p "$tmp"
     push_cleanup rm -rf $tmp
-    (cd $isofs && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
+    (cd $ISOFS && find . | grep -v "\.img$" | cpio -p -d -u $tmp/)
     cat >$tmp/isolinux.cfg <<EOF
-${serial:+SERIAL 0 $console_baud}
+${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${console_spec}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
-EOF
-
-    # write kargs.txt with additional args that should be executed by kexec to production mode
-    cat >$tmp/kargs.txt <<EOF
-${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
 EOF
 
     cp ${BUILDTMP}/cramfs.img $tmp
@@ -644,22 +601,12 @@ EOF
     pop_cleanup
 }
 
-# Create USB CRAMFS based image
-function build_usb_cramfs()
-{
+#################### Create USB CRAMFS based image
+function build_usb_cramfs() {
     local usb="$1" ; shift
-    local console="$1" ; shift
     local custom="$1"
-    local serial=
 
-    if [ "$console" != "$GRAPHIC_CONSOLE" ] ; then
-	serial=1
-	console_dev=$(extract_console_dev $console)
-	console_baud=$(extract_console_baud $console)
-	console_parity=$(extract_console_parity $console)
-	console_bits=$(extract_console_bits $console)
-    fi
-    prepare_cramfs "$console" "$custom"
+    prepare_cramfs "$custom"
     echo "* Creating USB CRAMFS based image"
 
     let vfat_size=${cramfs_size}+$FREE_SPACE
@@ -667,25 +614,17 @@ function build_usb_cramfs()
     # Make VFAT filesystem for USB
     mkfs.vfat -C "$usb" $vfat_size
 
-    # write kargs.txt with additional args that should be executed by kexec to production mode
-    tmp="${BUILDTMP}/kargs.txt"
-    cat >$tmp <<EOF
-${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
-EOF
-    mcopy -i "$usb" "$tmp" ::/kargs.txt
-    rm -f "$tmp"
-
     # Populate it
     echo "* Populating USB with overlay images and cramfs"
-    mcopy -bsQ -i "$usb" $isofs/kernel $isofs/pl_version ::/
+    mcopy -bsQ -i "$usb" $ISOFS/kernel $ISOFS/pl_version ::/
     mcopy -bsQ -i "$usb" ${BUILDTMP}/cramfs.img ::/
 
     # Use syslinux instead of isolinux to make the image bootable
     tmp="${BUILDTMP}/syslinux.cfg"
     cat >$tmp <<EOF
-${serial:+SERIAL 0 $console_baud}
+${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${serial:+console=${console_dev},${console_baud}${console_parity}${console_bits}}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${console_spec}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -698,52 +637,67 @@ EOF
     syslinux "$usb"
 }
 
-function type_to_name()
-{
-    echo $1 | sed '
+#################### map on all types provided on the command-line and invoke one of the above functions
+function build_types () {
+
+    [ -z "$OUTPUT_BASE" ] && OUTPUT_BASE="$PLC_NAME-BootCD-$BOOTCD_VERSION"
+
+    # alter output filename to reflect serial settings
+    if [ -n "$IS_SERIAL" ] ; then
+	if [ "$CONSOLE_INFO" == "$SERIAL_CONSOLE" ] ; then
+	    serial="-serial"
+	else
+	    serial="-serial-$(echo $CONSOLE_INFO | sed -e 's,:,,g')"
+	fi
+    else
+	serial=""
+    fi
+    
+    function type_to_name() {
+	echo $1 | sed '
         s/usb$/.usb/;
         s/usb_partition$/-partition.usb/;
         s/iso$/.iso/;
         s/usb_cramfs$/-cramfs.usb/;
         s/iso_cramfs$/-cramfs.iso/;
         '
+    }
+
+    for t in $TYPES; do
+	arg=$t
+
+	tname=`type_to_name $t`
+        # if -o is specified (as it has no default)
+	if [ -n "$OUTPUT_NAME" ] ; then
+	    output=$OUTPUT_NAME
+	else
+	    output="${OUTPUT_BASE}${serial}${tname}"
+	fi
+
+	echo "*** Dealing with type=$arg"
+	echo '*' build_$t "$output" "$CUSTOM_DIR"
+	[ -n "$DRY_RUN" ] || build_$t "$output" "$CUSTOM_DIR" 
+    done
 }
 
-[ -z "$OUTPUT_BASE" ] && OUTPUT_BASE="$PLC_NAME-BootCD-$BOOTCD_VERSION"
+#################### 
+function main () {
 
-for t in $TYPES; do
-    arg=$t
-    console=$CONSOLE_INFO
+    init_and_check
 
-    # figure if this is a serial image (can be specified in the type or with -s)
-    if  [[ "$t" == *serial* || "$console" != "$GRAPHIC_CONSOLE" ]]; then
-	# remove serial from type
-	t=`echo $t | sed 's/_serial//'`
-	# check console
-	[ "$console" == "$GRAPHIC_CONSOLE" ] && console="$SERIAL_CONSOLE"
-	# compute filename part
-	if [ "$console" == "$SERIAL_CONSOLE" ] ; then
-	    serial="-serial"
-	else
-	    serial="-serial-$(echo $console | sed -e 's,:,,g')"
-	fi
-    else
-	serial=""
-    fi
-    
-    tname=`type_to_name $t`
-    # if -o is specified (as it has no default)
-    if [ -n "$OUTPUT_NAME" ] ; then
-	output=$OUTPUT_NAME
-    else
-	output="${OUTPUT_BASE}${serial}${tname}"
-    fi
+    parse_command_line "$@"
 
-    echo "*** Dealing with type=$arg"
-    echo '*' build_$t "$output" "$console" "$CUSTOM_DIR"
-    if [ ! -n "$DRY_RUN" ] ; then
-	build_$t "$output" "$console" "$CUSTOM_DIR" 
-    fi
-done
+    echo "* Building images for $FULL_VERSION_STRING"
+    # Do not tolerate errors
+    set -e
+    trap "do_cleanup" ERR INT EXIT
 
-exit 0
+    init_serial $CONSOLE_INFO
+    build_overlay
+    build_types
+
+    exit 0
+}
+
+####################
+main "$@"
