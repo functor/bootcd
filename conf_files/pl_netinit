@@ -94,9 +94,8 @@ find_node_config()
 
         # 1. check for new named file first on the floppy disk
 	if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
-	    echo "pl_netinit: found node configuration file plnode.txt, using"
-
 	    conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+	    echo "pl_netinit: found node configuration file $conf_file"
 	    /etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
 	    /bin/umount $CONF_DEVICE_MOUNT_POINT
 	    return 1
@@ -144,9 +143,8 @@ find_node_config()
 		$CONF_DEVICE_MOUNT_POINT 2>&1 > /dev/null
 	    if [[ $? -eq 0 ]]; then
 		if [ -r "$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME" ]; then
-		    echo "pl_netinit: found node configuration file plnode.txt, using"
-
 		    conf_file="$CONF_DEVICE_MOUNT_POINT/$NEW_NODE_CONF_NAME"
+		    echo "pl_netinit: found node configuration file $conf_file"
 		    /etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
 		    echo "pl_netinit: found configuration"
 		    /bin/umount $CONF_DEVICE_MOUNT_POINT
@@ -166,9 +164,8 @@ find_node_config()
     # 3. see if there is an old file on the floppy disk. if there was,
     # the file $TMP_OLD_FLOPPY_CONF_FILE will be readable.
     if [ -r "$TMP_OLD_FLOPPY_CONF_FILE" ]; then
-	echo "pl_netinit: found node configuration file planet.cnf, using"
-
 	conf_file=$TMP_OLD_FLOPPY_CONF_FILE
+	echo "pl_netinit: found node configuration file $conf_file"
 	/etc/init.d/pl_validateconf < $conf_file > $USED_NET_CONF
 	return 1
     fi
@@ -178,7 +175,7 @@ find_node_config()
     echo "pl_netinit: looking for network configuration on cd in /usr/boot"
     if [ -r "$CD_NET_CONF_BOOT" ]; then
 	
-	echo "pl_netinit: found cd configuration file, using"
+	echo "pl_netinit: found cd configuration file $CD_NET_BOOT_CONF"
 	/etc/init.d/pl_validateconf < $CD_NET_CONF_BOOT > $USED_NET_CONF
 	return 1
     fi
@@ -188,7 +185,7 @@ find_node_config()
     echo "pl_netinit: looking for network configuration on cd in /usr"
     if [ -r "$CD_NET_CONF_ROOT" ]; then
 	
-	echo "pl_netinit: found cd configuration file, using"
+	echo "pl_netinit: found cd configuration file $CD_NET_CONF_ROOT"
 	/etc/init.d/pl_validateconf < $CD_NET_CONF_ROOT > $USED_NET_CONF
 	return 1
     fi
@@ -200,7 +197,7 @@ find_node_config()
     # can inform the users appropriately.
     echo "pl_netinit: using default network configuration"
     if [ -r "$FALLBACK_NET_CONF" ]; then
-	echo "pl_netinit: found cd default configuration file, using"
+	echo "pl_netinit: found cd default configuration file $FALLBACK_NET_CONF"
 	/etc/init.d/pl_validateconf < $FALLBACK_NET_CONF > $USED_NET_CONF
 	DEFAULT_NET_CONF=1
 	return 1
