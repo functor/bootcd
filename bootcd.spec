@@ -5,7 +5,7 @@
 
 %define name bootcd
 %define version 3.4
-%define taglevel 4
+%define taglevel 5
 
 %define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
@@ -81,6 +81,12 @@ fi
 %{_datadir}/%{name}
 
 %changelog
+* Wed Mar 26 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-3.4-4 BootCD-3.4-5
+- kargs.txt for serial boot fixed: now properly exposed to bootmanager through the overlay image
+- build.sh cleaned up in the process
+- actual location of selected node config file displayed
+- import pypci rather than pypciscan
+
 * Thu Feb 14 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-3.4-3 bootcd-3.4-4
 - build.sh support for -s <console_spec> (recommended vs using type)
 - build.sh cleanup - usage clearer wrt types - removed old code
