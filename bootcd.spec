@@ -4,8 +4,8 @@
 %define url $URL$
 
 %define name bootcd
-%define version 3.4
-%define taglevel 5
+%define version 4.2
+%define taglevel 0
 
 %define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
@@ -103,3 +103,4 @@ fi
 * Fri Sep  2 2005 Mark Huang <mlhuang@cotton.CS.Princeton.EDU> - 
 - Initial build.
 
+%define module_current_branch 3.4
