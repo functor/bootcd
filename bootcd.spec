@@ -3,7 +3,9 @@
 #
 %define url $URL$
 
-%define name bootcd
+%define nodefamily %{pldistro}-%{_arch}
+
+%define name bootcd-%{nodefamily}
 %define version 4.2
 %define taglevel 0
 
@@ -14,7 +16,7 @@ Packager: PlanetLab Central <support@planet-lab.org>
 Distribution: PlanetLab %{plrelease}
 URL: %(echo %{url} | cut -d ' ' -f 2)
 
-Summary: Boot CD
+Summary: Boot CD material for %{nodefamily}
 Name: %{name}
 Version: %{version}
 Release: %{release}
@@ -22,6 +24,8 @@ License: BSD
 Group: System Environment/Base
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+# other archs must be able to install this
+BuildArch: noarch
 
 Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 
@@ -79,6 +83,9 @@ fi
 %files
 %defattr(-,root,root,-)
 %{_datadir}/%{name}
+
+%post
+[ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
 * Wed Mar 26 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-3.4-4 BootCD-3.4-5
