@@ -67,7 +67,8 @@ for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
 done
 
 # Write nodefamily stamp, to help bootmanager do the right thing
-echo $nodefamily > $bootcd/etc/nodefamily
+mkdir -p $bootcd/etc/planetlab
+echo $nodefamily > $bootcd/etc/planetlab/nodefamily
 
 # Install fallback node configuration file
 echo "* Installing fallback node configuration file"
