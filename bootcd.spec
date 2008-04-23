@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 0
+%define taglevel 1
 
 %define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 
@@ -88,6 +88,11 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Wed Apr 23 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-1
+- new name for the rpm, to allow simultaneous rpm-installs for several nodefamily (pldistro+arch)
+- now installs in /usr/share/bootcd-<nodefamily> with a legacy symlink (requires MyPLC-4.2-7) 
+- nodefamily exported under bootcd.img in /etc/nodefamily (for bm) and under build/nodefamily (for build.sh)
+
 * Wed Mar 26 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-3.4-4 BootCD-3.4-5
 - kargs.txt for serial boot fixed: now properly exposed to bootmanager through the overlay image
 - build.sh cleaned up in the process
