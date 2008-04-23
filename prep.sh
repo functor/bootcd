@@ -28,8 +28,8 @@ export PATH
 
 . build.common
 
-# pldistro expected as $1 - defaults to planetlab
 pldistro=$1 ; shift
+nodefamily=$1; shift
 
 # Packages to install, junk and precious : see build/<pldistro>/bootcd.pkgs
 
@@ -41,7 +41,8 @@ bootcd=$PWD/build/bootcd
 install -d -m 755 $bootcd
 
 # Write version number
-rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 >build/version.txt
+rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 > build/version.txt
+echo $nodefamily > build/nodefamily
 
 # Install base system
 pl_root_makedevs $bootcd
@@ -64,6 +65,9 @@ echo "* Installing initscripts"
 for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
     install -D -m 755 conf_files/$file $bootcd/etc/init.d/$file
 done
+
+# Write nodefamily stamp, to help bootmanager do the right thing
+echo $nodefamily > $bootcd/etc/nodefamily
 
 # Install fallback node configuration file
 echo "* Installing fallback node configuration file"
@@ -91,7 +95,7 @@ ln -sf /sbin/init $bootcd/init
 
 # Pack the rest into a compressed archive
 echo "* Compressing reference image"
-(cd $bootcd && find . | cpio --quiet -c -o) | gzip -9 >$isofs/bootcd.img
+(cd $bootcd && find . | cpio --quiet -c -o) | gzip -9 > $isofs/bootcd.img
 
 # Build syslinux
 # echo "* Building syslinux"
