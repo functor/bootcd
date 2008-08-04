@@ -28,6 +28,7 @@ OUTPUT_BASE=
 DRY_RUN=""
 OUTPUT_NAME=""
 TYPES=""
+KARGS_STR=""
 
 # various globals
 BUILDTMP=""
@@ -140,6 +141,7 @@ usage() {
     echo "    -o output-name   The full name of the generated file"
     echo "    -C custom-dir    Custom directory"
     echo "    -n               Dry run - mostly for debug/test purposes"
+    echo "    -k               Add additional parameters to the kargs.txt file"
     echo "    -h               This message"
     echo "All known types: $ALL_TYPES"
     exit 1
@@ -151,7 +153,7 @@ function parse_command_line () {
     # init
     TYPES=""
     # Get options
-    while getopts "f:t:as:SO:o:C:nh" opt ; do
+    while getopts "f:t:as:SO:o:C:k:nh" opt ; do
 	case $opt in
 	    f) NODE_CONFIGURATION_FILE=$OPTARG ;;
 	    t) TYPES="$TYPES $OPTARG" ;;
@@ -161,6 +163,7 @@ function parse_command_line () {
 	    O) OUTPUT_BASE="$OPTARG" ;;
 	    o) OUTPUT_NAME="$OPTARG" ;;
 	    C) CUSTOM_DIR="$OPTARG" ;;
+	    k) KARGS_STR="$OPTARG" ;;
 	    n) DRY_RUN=true ;;
 	    h|*) usage ;;
 	esac
@@ -313,7 +316,11 @@ EOF
     fi
 
     if [ -n "$IS_SERIAL" ] ; then
-	echo "${console_spec}" > $OVERLAY/kargs.txt
+	KARGS_STR="$KARGS_STR ${console_spec}"
+    fi
+
+    if [ -n "$KARGS_STR" ] ; then
+	echo "$KARGS_STR" > $OVERLAY/kargs.txt
     fi
 
     # Pack overlay files into a compressed archive
