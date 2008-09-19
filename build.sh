@@ -99,19 +99,8 @@ function init_and_check () {
 	. /etc/planetlab/plc_config
     fi
 
-    # From within a myplc chroot /usr/tmp is too small 
-    # to build all possible images, whereas /data is part of the host
-    # filesystem and usually has sufficient space.  What we
-    # should do is check whether the expected amount of space
-    # is available.
-    BUILDTMP=/usr/tmp
-    if [ -d /data/tmp ] ; then
-	isreadonly=$(mktemp /data/tmp/isreadonly.XXXXXX || /bin/true)
-	if [ -n "$isreadonly" ] ; then
-            rm -f "$isreadonly"
-            BUILDTMP=/data/tmp
-	fi
-    fi
+    # use /var/tmp that should be large enough on both chroot- or vserver-based myplc
+    BUILDTMP=/var/tmp
 
     FULL_VERSION_STRING="${PLC_NAME} BootCD ${BOOTCD_VERSION}"
 
@@ -363,9 +352,7 @@ EOF
 
     # Create ISO image
     echo "* Creating ISO image"
-    mkisofs -o "$iso" \
-        $MKISOFS_OPTS \
-        $ISOFS
+    mkisofs -o "$iso" $MKISOFS_OPTS $ISOFS
 }
 
 #################### USB with partitions
