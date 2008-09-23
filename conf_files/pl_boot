@@ -72,7 +72,7 @@ CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
 while : ; do
 
     if [[ -f $CANCEL_BOOT_FLAG ]]; then
-        echo "pl_boot: got request to cancel boot, exiting"
+        echo $(date "+%H:%M:%S") " pl_boot: got request to cancel boot, exiting"
         exit 0
     fi
     
@@ -81,7 +81,7 @@ while : ; do
         contact_count=0
 
         if [[ $on_backup_server == 1 ]]; then
-            echo "pl_boot: failed to contact backup server, trying primary."
+            echo $(date "+%H:%M:%S") " pl_boot: failed to contact backup server, trying primary $BOOT_SERVER"
 
             on_backup_server=0
 
@@ -91,7 +91,7 @@ while : ; do
             CONNECT_BOOT_SERVER_GPG_KEYRING=$BOOT_SERVER_GPG_KEYRING
             CONNECT_BOOT_SERVER_CACERT=$BOOT_SERVER_CACERT
         else
-            echo "pl_boot: failed to contact primary server, trying backup."
+            echo $(date "+%H:%M:%S") " pl_boot: failed to contact primary server, trying backup $BACKUP_BOOT_SERVER"
 
             on_backup_server=1
 
@@ -106,11 +106,11 @@ while : ; do
     if [[ $contact_count != 0 ]]; then
 
         if [[ $on_backup_server == 1 ]]; then
-            echo "pl_boot: attempting to fetch script from backup server in 30s"
+            echo $(date "+%H:%M:%S") " pl_boot: attempting to fetch script from backup server in 30s"
         else
-            echo "pl_boot: attempting to fetch script from primary server in 30s"
+            echo $(date "+%H:%M:%S") " pl_boot: attempting to fetch script from primary server in 30s"
         fi
-    /bin/sleep 30
+	/bin/sleep 30
     fi
 
     # assemble the curl transaction
@@ -140,18 +140,18 @@ while : ; do
         --always-trust \
         --decrypt $UNVERIFIED_SCRIPT"
 
-    echo "pl_boot: generating new nonce"
+    echo $(date "+%H:%M:%S") " pl_boot: generating new nonce"
     /usr/bin/head --bytes=32 /dev/urandom | \
     /usr/bin/od -tx1 -An --width=32 | \
     /bin/sed 's/ //g' > /tmp/nonce
 
-    echo "pl_boot: fetching script from boot server $CONNECT_BOOT_SERVER"
+    echo $(date "+%H:%M:%S") " pl_boot: fetching script from boot server $CONNECT_BOOT_SERVER"
     ((contact_count++))
     rm -f $UNVERIFIED_SCRIPT
     $CURL_CMD
     curl_err=$?
     if [ $curl_err -ne 0 ]; then
-        echo "pl_boot: curl request failed with error $curl_err:"
+        echo $(date "+%H:%M:%S") " pl_boot: curl request failed with error $curl_err:"
         cat /tmp/curl_errors
         echo
         if [ -n "$DISCONNECTED_OPERATION" ]; then
@@ -171,23 +171,23 @@ while : ; do
         rmdir /tmp/boot-media
     fi 
 
-    echo "pl_boot: verifying downloaded script"
+    echo $(date "+%H:%M:%S") " pl_boot: verifying downloaded script"
     rm -f $VERIFIED_SCRIPT
     $GPG_CMD 2> /tmp/gpg_errors
     if [ $? -ne 0 ]; then
-        echo "pl_boot: failed to verify file:"
+        echo $(date "+%H:%M:%S") " pl_boot: failed to verify file:"
         cat /tmp/gpg_errors
         echo
         continue
     fi
-    echo "pl_boot: decrypted and verified script succesfully"
+    echo $(date "+%H:%M:%S") " pl_boot: decrypted and verified script succesfully"
 
-    echo "pl_boot: handing control to download script"
+    echo $(date "+%H:%M:%S") " pl_boot: handing control to download script"
     rm -f $UNVERIFIED_SCRIPT
     chmod +x $VERIFIED_SCRIPT
     $VERIFIED_SCRIPT
     
-    echo "pl_boot: downloaded script has returned"
+    echo $(date "+%H:%M:%S") " pl_boot: downloaded script has returned"
 done
 
-echo "pl_boot: automatic boot process canceled by user"
+echo $(date "+%H:%M:%S") " pl_boot: automatic boot process canceled by user"
