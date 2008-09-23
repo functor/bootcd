@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 4
+%define taglevel 5
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -90,6 +90,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Sep 23 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-5
+- cosmetic - pl_boot to display timestamps
+
 * Mon Aug 04 2008 Stephen Soltesz <soltesz@cs.princeton.edu> - BootCD-4.2-4
 - adds -k as an argument to build.sh to pass additional kernel parameters to the
 - bootcd and kexec kernel.
