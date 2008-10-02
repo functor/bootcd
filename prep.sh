@@ -71,9 +71,12 @@ done
 # fedora 9 comes with /sbin/init from upstart, that uses /etc/event.d instead of inittab
 # (in fact inittab is read for determining the default runlevel)
 if [ -d $bootcd/etc/event.d ] ; then
-    echo "* Tuning /etc/event.d /for upstart"
+    echo "* Tuning /etc/event.d for upstart"
     pushd $bootcd/etc/event.d
+    # use our system initialisation script
     sed -i -e 's,/etc/rc.d/rc.sysinit[a-z\.]*,/etc/init.d/pl_sysinit,g' *
+    # use our startup script in runlevel 2
+    sed -i -e 's,/etc/rc\.d/rc[ \t][ \t]*2,/etc/init.d/pl_boot,g' rc2
     popd    
 fi
 
