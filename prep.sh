@@ -72,7 +72,7 @@ echo $nodefamily > $bootcd/etc/planetlab/nodefamily
 
 # Install fallback node configuration file
 echo "* Installing fallback node configuration file"
-install -D -m 644 conf_files/default-net.cnf $bootcd/usr/boot/default-net.cnf
+install -D -m 644 usr-boot/default-node.txt $bootcd/usr/boot/default-node.txt
 
 # Copy /etc/passwd out
 install -D -m 644 $bootcd/etc/passwd build/passwd

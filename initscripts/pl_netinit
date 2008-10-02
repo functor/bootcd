@@ -19,7 +19,7 @@ CD_NET_CONF_ROOT=/usr/$NEW_NODE_CONF_NAME
 
 # if all other network configuration file sources 
 # don't exist, fall back to this one (always on the cd)
-FALLBACK_NET_CONF=/usr/boot/default-net.cnf
+FALLBACK_NET_CONF=/usr/boot/default-node.txt
 
 # a temporary place to hold the old configuration file
 # off of the floppy disk if we find it (so we don't have
