@@ -1,14 +1,21 @@
 #!/bin/sh
 
-echo $(date "+%H:%M:%S") " pl_sysinit: bringing system online"
+echo ""
+echo "PlanetLab BootCD - distro @PLDISTRO@ based on @FCDISTRO@"
 
-echo $(date "+%H:%M:%S") " pl_sysinit: mounting file systems"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: bringing system online"
+
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: mounting file systems"
 /bin/mount -v -a
 
-echo $(date "+%H:%M:%S") " pl_sysinit: starting udevd"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: starting udevd"
 [ -x /sbin/start_udev ] && /sbin/start_udev
 
-echo $(date "+%H:%M:%S") " pl_sysinit: invoking hardware initialization script"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: invoking hardware initialization script"
 /etc/init.d/pl_hwinit
 
 check_initrd()
@@ -50,13 +57,13 @@ check_block_devices()
 	if [ "$(cat /sys/block/$device/removable)" = "1" ] ; then
 	    partitions=$(/bin/awk "\$4 ~ /${device}[0-9]*/ { print \$4 }" /proc/partitions)
 	    for partition in $partitions ; do
-		echo $(date "+%H:%M:%S") " pl_sysinit: checking $partition for iso image"
+		echo $(date "+%H:%M:%S") "pl_sysinit: checking $partition for iso image"
 		mkdir -p /tmp/$partition
 		if /bin/mount -o ro -t msdos,ext2 /dev/$partition /tmp/$partition 2>&1 > /dev/null ; then
 		# Look for the first ISO image
 		    for iso in /tmp/$partition/*.iso ; do
 			if /sbin/losetup /dev/loop0 $iso ; then
-			    echo $(date "+%H:%M:%S") " pl_sysinit: using $(basename $iso) on $partition"
+			    echo $(date "+%H:%M:%S") "pl_sysinit: using $(basename $iso) on $partition"
 			    device="loop0"
 			    break
 			fi
@@ -68,7 +75,7 @@ check_block_devices()
 	    done
 	fi
 	
-	echo $(date "+%H:%M:%S") " pl_sysinit: checking $device for /usr contents"
+	echo $(date "+%H:%M:%S") "pl_sysinit: checking $device for /usr contents"
 	/bin/mount -o ro -t iso9660 /dev/$device /usr 2>&1 > /dev/null
 	if [ $? -eq 0 ]; then
 	# it mounted, but we should probably make sure its our boot cd
@@ -81,7 +88,7 @@ check_block_devices()
 	    # eh, wrong cd, keep trying
 		/bin/umount /usr 2>&1 /dev/null
 	    else
-		echo $(date "+%H:%M:%S") " pl_sysinit: found cd and mounted on /usr"
+		echo $(date "+%H:%M:%S") "pl_sysinit: found cd and mounted on /usr"
 		_mounted=1
 		break
 	    fi
@@ -90,7 +97,7 @@ check_block_devices()
     return $_mounted
 }
 
-echo $(date "+%H:%M:%S") " pl_sysinit: finding cd to mount on /usr"
+echo $(date "+%H:%M:%S") "pl_sysinit: finding cd to mount on /usr"
 mounted=0
 check_initrd
 if [ $? -eq 1 ]; then
@@ -102,7 +109,7 @@ else
 fi
 
 if [ $mounted -eq 0 ]; then
-    echo $(date "+%H:%M:%S") " pl_sysinit: unable to find boot cdrom, cannot continue."
+    echo $(date "+%H:%M:%S") "pl_sysinit: unable to find boot cdrom, cannot continue."
     # todo: maybe we can put a staticly linked sshd here
     /sbin/shutdown -h now
 fi
@@ -111,7 +118,7 @@ fi
 # parts of this were copied from devmap_mknod.sh from the device-mapper
 # source. Since fedora decided not to include it in the rpm, it is 
 # being copied here
-echo $(date "+%H:%M:%S") " pl_sysinit: creating device mapper control node"
+echo $(date "+%H:%M:%S") "pl_sysinit: creating device mapper control node"
 
 DM_DIR="mapper"
 DM_NAME="device-mapper"
@@ -126,14 +133,17 @@ if [ -n "$MAJOR" ] && [ -n "$MINOR" ]; then
     /bin/rm -f $CONTROL
     /bin/mknod --mode=600 $CONTROL c $MAJOR $MINOR
 else
-    echo $(date "+%H:%M:%S") " pl_sysinit: unable to create device mapper control node, continuing"
+    echo $(date "+%H:%M:%S") "pl_sysinit: unable to create device mapper control node, continuing"
 fi
 
-echo $(date "+%H:%M:%S") " pl_sysinit: configuring kernel parameters"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: configuring kernel parameters"
 /sbin/sysctl -e -p /etc/sysctl.conf
 
-echo $(date "+%H:%M:%S") " pl_sysinit: bringing network online"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: bringing network online"
 /etc/init.d/pl_netinit
 
-echo $(date "+%H:%M:%S") " pl_sysinit: attempting to sync clock"
+echo ""
+echo $(date "+%H:%M:%S") "pl_sysinit: attempting to sync clock"
 /usr/sbin/ntpdate -b -t 10 -u pool.ntp.org
