@@ -63,8 +63,19 @@ done
 # Install initscripts
 echo "* Installing initscripts"
 for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
+    sed -i -e "s,@PLDISTRO@,$pldistro,g" -e "s,@FCDISTRO@,$fcdistro,g" initscripts/$file
     install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
+
+# connect the scripts for upstart
+# fedora 9 comes with /sbin/init from upstart, that uses /etc/event.d instead of inittab
+# (in fact inittab is read for determining the default runlevel)
+if [ -d $bootcd/etc/event.d ] ; then
+    echo "* Tuning /etc/event.d /for upstart"
+    pushd $bootcd/etc/event.d
+    sed -i -e 's,/etc/rc.d/rc.sysinit[a-z\.]*,/etc/init.d/pl_sysinit,g' *
+    popd    
+fi
 
 # Write nodefamily stamp, to help bootmanager do the right thing
 mkdir -p $bootcd/etc/planetlab
