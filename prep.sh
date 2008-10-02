@@ -57,13 +57,13 @@ install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
 # Install configuration files
 echo "* Installing configuration files"
 for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
-    install -D -m 644 conf_files/$file $bootcd/etc/$file
+    install -D -m 644 etc/$file $bootcd/etc/$file
 done
 
 # Install initscripts
 echo "* Installing initscripts"
 for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
-    install -D -m 755 conf_files/$file $bootcd/etc/init.d/$file
+    install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
 
 # Write nodefamily stamp, to help bootmanager do the right thing
@@ -97,13 +97,5 @@ ln -sf /sbin/init $bootcd/init
 # Pack the rest into a compressed archive
 echo "* Compressing reference image"
 (cd $bootcd && find . | cpio --quiet -c -o) | gzip -9 > $isofs/bootcd.img
-
-# Build syslinux
-# echo "* Building syslinux"
-# CFLAGS="-Werror -Wno-unused -finline-limit=2000" make -C syslinux
-
-# Install isolinux
-#echo "* Installing isolinux"
-#install -D -m 644 syslinux/isolinux.bin $isofs/isolinux.bin
 
 exit 0

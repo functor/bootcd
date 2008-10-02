@@ -8,6 +8,10 @@ import time
 
 loadedmodules = None
 
+def now():
+    format="%H:%M:%S(%Z)"
+    return time.strftime(format,time.localtime())
+
 def modprobe(module, args = ""):
     ret = os.system("/sbin/modprobe %s %s" % (module, args))
     if os.WEXITSTATUS(ret) == 0:
@@ -28,7 +32,7 @@ def main(argv):
         path = "/lib/modules/%s/modules.pcimap" % kernel
 
     pcimap = pypcimap.PCIMap(path)
-    print "pl_hwinit: loading applicable modules"
+    print now(),"pl_hwinit: loading applicable modules"
     devices = pypci.get_devices()
     storage_devices = 0
     network_devices = 0
@@ -49,31 +53,31 @@ def main(argv):
 
             # FIXME: This needs improved logic in the case of multiple matching modules
             for module in modules:
-                print "pl_hwinit: found and loading module %s (%s)" % (module, slot)
+                print now(),"pl_hwinit: found and loading module %s (%s)" % (module, slot)
                 modprobe(module)
 
     if network_devices == 0:
-        print "pl_hwinit: no supported network devices found!"
-        print "pl_hwinit: the following devices were found, but have no driver:"
-        print "pl_hwinit: ", "\npl_hwinit: ".join(missing)
+        print now(),"pl_hwinit: no supported network devices found!"
+        print now(),"pl_hwinit: the following devices were found, but have no driver:"
+        print now(),"pl_hwinit: ", "\npl_hwinit: ".join(missing)
 
     # XXX: could check for storage devices too, but older kernels have a lot of that built-in
 
     # sd_mod won't get loaded automatically
-    print "pl_hwinit: loading sd_mod"
+    print now(),"pl_hwinit: loading sd_mod"
     modprobe("sd_mod")
 
     # load usb_storage to support node conf files on flash disks
-    print "pl_hwinit: loading usb_storage"
+    print now(),"pl_hwinit: loading usb_storage"
     modprobe("usb_storage")
 
-    print "pl_hwinit: loading floppy device driver"
+    print now(),"pl_hwinit: loading floppy device driver"
     modprobe("floppy","floppy=0,allowed_drive_mask")
 
     # always wait a bit between loading the usb drivers, and checking /sys/
     # for usb devices (this isn't necessarily for waiting for mass storage files,
     # that is done below)
-    print "pl_hwinit: waiting for usb system to initialize."
+    print now(),"pl_hwinit: waiting for usb system to initialize."
     time.sleep(10)
 
     # sometimes, flash devices take a while to initialize. in fact, the kernel
@@ -114,15 +118,15 @@ def main(argv):
     os.path.walk("/sys/devices", filter_and_add, wait_dev_list)
 
     if len(wait_dev_list) > 0:
-        print "pl_hwinit: found USB mass storage device(s). Attempting to wait"
-        print "pl_hwinit: up to %d seconds for them to come online." % MAX_USB_WAIT_TIME
+        print now(),"pl_hwinit: found USB mass storage device(s). Attempting to wait"
+        print now(),"pl_hwinit: up to %d seconds for them to come online." % MAX_USB_WAIT_TIME
 
         total_wait_time = 0
         success = False
         while total_wait_time < MAX_USB_WAIT_TIME:    
             total_wait_time += PER_CHECK_USB_WAIT_TIME
 
-            print "pl_hwinit: waiting %d seconds." % PER_CHECK_USB_WAIT_TIME
+            print now(),"pl_hwinit: waiting %d seconds." % PER_CHECK_USB_WAIT_TIME
             time.sleep(PER_CHECK_USB_WAIT_TIME)
 
             all_devices_online = True
@@ -132,17 +136,17 @@ def main(argv):
 
             if all_devices_online:
                 success = True
-                print "pl_hwinit: looks like the devices are now online."
+                print now(),"pl_hwinit: looks like the devices are now online."
                 break
             else:
-                print "pl_hwinit: not all devices online yet, waiting..."
+                print now(),"pl_hwinit: not all devices online yet, waiting..."
 
         if success:
-            print "pl_hwinit: Succesfully waited for USB mass storage devices"
-            print "pl_hwinit: to come online."
+            print now(),"pl_hwinit: Succesfully waited for USB mass storage devices"
+            print now(),"pl_hwinit: to come online."
         else:
-            print "pl_hwinit: One or more USB mass storage devices did not"
-            print "pl_hwinit: initialize in time. Continuing anyway."
+            print now(),"pl_hwinit: One or more USB mass storage devices did not"
+            print now(),"pl_hwinit: initialize in time. Continuing anyway."
 
 if __name__ == "__main__":
     main(sys.argv[1:])
