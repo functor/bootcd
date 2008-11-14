@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 5
+%define taglevel 6
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -90,6 +90,10 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Fri Nov 14 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-6
+- add support for fedora9 images - compliant with upstart
+- formerly monolythic dir 'conf_files/' split into 'etc/' and 'initscripts/'
+
 * Tue Sep 23 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-5
 - cosmetic - pl_boot to display timestamps
 
