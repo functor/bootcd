@@ -38,7 +38,8 @@ def main(argv):
     network_devices = 0
     missing = []
     globals()['loadedmodules'] = file('/tmp/loadedmodules', 'w')
-    for (slot, dev) in devices.iteritems():
+    for slot in sorted(devices.keys()):
+        dev = devices[slot]
         modules = pcimap.get(dev)
         base = (dev[4] & 0xff0000) >> 16
         if len(modules) == 0:
