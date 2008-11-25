@@ -153,7 +153,7 @@ function parse_command_line () {
 	    O) OUTPUT_BASE="$OPTARG" ;;
 	    o) OUTPUT_NAME="$OPTARG" ;;
 	    C) CUSTOM_DIR="$OPTARG" ;;
-	    k) KARGS_STR="$OPTARG" ;;
+	    k) KARGS_STR="$KARGS_STR $OPTARG" ;;
 	    n) DRY_RUN=true ;;
 	    h|*) usage ;;
 	esac
