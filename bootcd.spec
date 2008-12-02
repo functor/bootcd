@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 6
+%define taglevel 7
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -90,6 +90,10 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Dec 02 2008 Daniel Hokka Zakrisson <daniel@hozac.com> - BootCD-4.2-7
+- Allow multiple -k options to the build.sh script.
+- Probe devices in PCI bus order.
+
 * Fri Nov 14 2008 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-6
 - add support for fedora9 images - compliant with upstart
 - formerly monolythic dir 'conf_files/' split into 'etc/' and 'initscripts/'
