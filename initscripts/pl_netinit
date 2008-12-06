@@ -248,6 +248,7 @@ fi
 # either a mac address (in which case we will need to find the device), or
 # the device itself
 
+ETH_DEVICE=
 if [[ -n "$NET_DEVICE" ]]; then
     # the user specified a mac address we should use. find the network
     # device for it.
@@ -263,21 +264,24 @@ if [[ -n "$NET_DEVICE" ]]; then
 	fi
     done
     popd
-else
-    ETH_DEVICE=$DEFAULT_NET_DEV
-    echo $(date "+%H:%M:%S") " pl_netinit: using default device $ETH_DEVICE"
-
 fi
 
+# if we didn't find a device yet, check which is the primary
+if [[ -z "$ETH_DEVICE" ]]; then
+    pushd /etc/sysconfig/network-scripts > /dev/null
+    for conf in ifcfg-*; do
+	egrep -q '^PRIMARY=["'"'"']?[yY1t]' $conf || continue
+	ETH_DEVICE=${conf#ifcfg-}
+	break
+    done
+    popd > /dev/null
+fi
 
-# if we couldn't find a device (would happen if NET_DEVICE was specified
-# but we couldn't find a device for that addresS), then abort the rest
-# of the startup
-
+# still nothing? fail the boot.
 if [[ -z "$ETH_DEVICE" ]]; then
     echo $(date "+%H:%M:%S") " pl_netinit: unable to find a usable device, check to make sure"
     echo $(date "+%H:%M:%S") " pl_netinit: the NET_DEVICE field in the configuration file"
-    echo $(date "+%H:%M:%S") " pl_netinit: cooresponds with a network adapter on this system"
+    echo $(date "+%H:%M:%S") " pl_netinit: corresponds with a network adapter on this system"
     net_init_failed
 fi
 
@@ -297,43 +301,8 @@ if [[ $? -ne 0 ]]; then
     net_init_failed
 fi
 
-ifcfg=/etc/sysconfig/network-scripts/ifcfg-$ETH_DEVICE
-echo "DEVICE=$ETH_DEVICE" > $ifcfg
-[ -n "$NET_DEVICE" ] && \
-  echo "HWADDR=$NET_DEVICE" >> $ifcfg
-echo "BOOTPROTO=$IP_METHOD" >> $ifcfg
-echo "DHCP_HOSTNAME=$HOST_NAME.$DOMAIN_NAME" >> $ifcfg
-
-if [ -n "$WLAN_SSID$WLAN_IWCONFIG$WLAN_MODE" ]; then
-    [ -n "$WLAN_SSID" ] && \
-      echo "ESSID=$WLAN_SSID" >> $ifcfg
-    [ -n "$WLAN_IWCONFIG" ] && \
-      echo "IWCONFIG=$WLAN_IWCONFIG" >> $ifcfg
-    [ -n "$WLAN_MODE" ] && \
-      echo "MODE=$WLAN_MODE" >> $ifcfg
-fi
-
-if [ "$IP_METHOD" = "static" ]; then
-    echo "IPADDR=$IP_ADDRESS" >> $ifcfg
-    echo "NETMASK=$IP_NETMASK" >> $ifcfg
-    echo "GATEWAY=$IP_GATEWAY" >> $ifcfg
-
-    /bin/hostname "$HOST_NAME.$DOMAIN_NAME"
-
-    if [[ -z "$IP_DNS1" ]]; then
-	echo $(date "+%H:%M:%S") " pl_netinit: no dns server specified, cannot continue."
-	net_init_failed
-    fi
-
-    echo "nameserver $IP_DNS1" > /etc/resolv.conf
-    if [[ -n "$IP_DNS2" ]]; then
-	echo "nameserver $IP_DNS2" >> /etc/resolv.conf
-    fi
-fi
-
-
-echo $(date "+%H:%M:%S") " pl_netinit: attempting to bring up device $ETH_DEVICE"
-/sbin/ifup $ETH_DEVICE
+echo $(date "+%H:%M:%S") " pl_netinit: attempting to start networking"
+/sbin/service network start
 
 # for backwards compatibility
 /sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT

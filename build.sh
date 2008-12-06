@@ -303,6 +303,9 @@ EOF
     if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
 	echo "* Installing node configuration file $NODE_CONFIGURATION_FILE -> /usr/boot/plnode.txt of the bootcd image"
 	install -D -m 644 $NODE_CONFIGURATION_FILE $OVERLAY/usr/boot/plnode.txt
+	NODE_ID=$(source $NODE_CONFIGURATION_FILE; echo $NODE_ID)
+	echo "* Building network configuration for $NODE_ID"
+	plnet -- --root $OVERLAY --files-only --program BootCD $NODE_ID
     fi
 
     if [ -n "$IS_SERIAL" ] ; then

@@ -31,6 +31,8 @@ BuildArch: noarch
 
 Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 
+Requires: pyplnet
+
 AutoReqProv: no
 %define debug_package %{nil}
 
