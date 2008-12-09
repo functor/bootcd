@@ -50,6 +50,9 @@ pkgsfile=$(pl_locateDistroFile ../build/ $pldistro bootcd.pkgs)
 pl_root_mkfedora $bootcd $pldistro $pkgsfile
 pl_root_tune_image $bootcd
 
+# Add site_admin console account to BootCD: with root priv, and empty passwd
+chroot ${bootcd} /usr/sbin/useradd -p "" -o -g 0 -u 0 -m site_admin
+
 # Install ipnmac (for SuperMicro machines with IPMI)
 echo "* Installing IPMI utilities"
 install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
