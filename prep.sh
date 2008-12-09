@@ -51,7 +51,7 @@ pl_root_mkfedora $bootcd $pldistro $pkgsfile
 pl_root_tune_image $bootcd
 
 # Add site_admin console account to BootCD: with root priv, and empty passwd
-CRYPT_SA_PASSWORD=$(python -c "import crypt, random, string; salt = [random.choice(string.letters + string.digits + \"./\") for i in range(0,8)] ; print crypt.crypt('site_admin', '\$1\$' + "".join(salt) + '\$')")
+CRYPT_SA_PASSWORD=$(python -c "import crypt, random, string; salt = [random.choice(string.letters + string.digits + \"./\") for i in range(0,8)] ; print crypt.crypt('site_admin', '\$1\$' + \"\".join(salt) + '\$')")
 chroot ${bootcd} /usr/sbin/useradd -p "$CRYPT_SA_PASSWORD" -o -g 0 -u 0 -m site_admin
 
 # Install ipnmac (for SuperMicro machines with IPMI)
