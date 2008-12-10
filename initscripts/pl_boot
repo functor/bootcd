@@ -161,32 +161,32 @@ while : ; do
             umount /tmp/boot-media
             rmdir /tmp/boot-media
         else
-			case $curl_err in
-				6)
-        			echo $(date "+%H:%M:%S") " This error likely indicates a networking configuration error. "
-        			echo $(date "+%H:%M:%S") " Please, check whether you can ping this machine.  If you can, "
-        			echo $(date "+%H:%M:%S") " we recommend checking your DNS settings.  If you cannot, then "
-					echo $(date "+%H:%M:%S") " please double check your network settings registered at PLC and "
-					echo $(date "+%H:%M:%S") " stored on this Boot Image."
-					for file in `ls /etc/sysconfig/network-scripts/ifcfg-eth*` ; do 
-						echo $(date "+%H:%M:%S") $file :
-						cat $file
-					done
-				;;
-				60)
-        			echo $(date "+%H:%M:%S") " This error likely indicates that the hardware clock is not set "
-					echo $(date "+%H:%M:%S") " to GMT.  The result is that authentication between the local and "
-					echo $(date "+%H:%M:%S") " remote site fails.  Please double check this machine's system "
-					echo $(date "+%H:%M:%S") " clock, and set it to GMT in the BIOS. If after rebooting the same "
-					echo $(date "+%H:%M:%S") " error occurs, please report the situation to support@planet-lab.org "
-        			echo $(date "+%H:%M:%S") " with as much detail as possible."
-				;;
-				*)
-        			echo $(date "+%H:%M:%S") " The best-practice approach for handling this error is not yet "
-        			echo $(date "+%H:%M:%S") " documented.  Please report this error to support@planet-lab.org "
-        			echo $(date "+%H:%M:%S") " with as much detail as possible."
-				;;
-			esac
+            case $curl_err in
+                6)
+                    echo $(date "+%H:%M:%S") " This error likely indicates a networking configuration error. "
+                    echo $(date "+%H:%M:%S") " Please, check whether you can ping this machine.  If you can, "
+                    echo $(date "+%H:%M:%S") " we recommend checking your DNS settings.  If you cannot, then "
+                    echo $(date "+%H:%M:%S") " please double check your network settings registered at PLC and "
+                    echo $(date "+%H:%M:%S") " stored on this Boot Image."
+                    for file in `ls /etc/sysconfig/network-scripts/ifcfg-eth*` ; do 
+                        echo $(date "+%H:%M:%S") $file :
+                        cat $file
+                    done
+                ;;
+                60)
+                    echo $(date "+%H:%M:%S") " This error likely indicates that the hardware clock is not set "
+                    echo $(date "+%H:%M:%S") " to GMT.  The result is that authentication between the local and "
+                    echo $(date "+%H:%M:%S") " remote site fails.  Please double check this machine's system "
+                    echo $(date "+%H:%M:%S") " clock, and set it to GMT in the BIOS. If after rebooting the same "
+                    echo $(date "+%H:%M:%S") " error occurs, please report the situation to support@planet-lab.org "
+                    echo $(date "+%H:%M:%S") " with as much detail as possible."
+                ;;
+                *)
+                    echo $(date "+%H:%M:%S") " The best-practice approach for handling this error is not yet "
+                    echo $(date "+%H:%M:%S") " documented.  Please report this error to support@planet-lab.org "
+                    echo $(date "+%H:%M:%S") " with as much detail as possible."
+                ;;
+            esac
             continue
         fi
     elif [ -n "$DISCONNECTED_OPERATION" ]; then
