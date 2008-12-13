@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 7
+%define taglevel 8
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -92,6 +92,11 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Sat Dec 13 2008 Daniel Hokka Zakrisson <daniel@hozac.com> - BootCD-4.2-8
+- Use pyplnet.
+- Add a site_admin account to the BootCD.
+- Add some explanations for common errors.
+
 * Tue Dec 02 2008 Daniel Hokka Zakrisson <daniel@hozac.com> - BootCD-4.2-7
 - Allow multiple -k options to the build.sh script.
 - Probe devices in PCI bus order.
