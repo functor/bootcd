@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 8
+%define taglevel 9
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -93,6 +93,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Dec 30 2008 Marc Fiuczynski <mef@cs.princeton.edu> - BootCD-4.2-9
+- Added kupdate.sh
+
 * Sat Dec 13 2008 Daniel Hokka Zakrisson <daniel@hozac.com> - BootCD-4.2-8
 - Use pyplnet.
 - Add a site_admin account to the BootCD.
