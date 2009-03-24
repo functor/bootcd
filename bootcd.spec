@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 9
+%define taglevel 10
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -93,6 +93,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Mar 24 2009 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-10
+- mkfs.vfat output removed prior to invokation - fix needed on fedora 10
+
 * Tue Dec 30 2008 Marc Fiuczynski <mef@cs.princeton.edu> - BootCD-4.2-9
 - Added kupdate.sh
 
