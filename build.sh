@@ -417,6 +417,7 @@ function build_usb() {
     local usb="$1" ; shift
     local custom="$1"
 
+    rm -f "$usb"
     mkfs.vfat -C "$usb" $(($(du -Lsk $ISOFS | awk '{ print $1; }') + $FREE_SPACE))
 
     # Populate it
