@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# this was the initial rough implementation of what became kvariant.sh
+# should maybe be deprecated..
+
 kernelrpm=$1
 isofsdir=$2
 
