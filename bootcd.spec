@@ -59,7 +59,7 @@ pushd  BootCD
 # Install the reference image and build scripts
 install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
 install -m 755 build.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
-install -m 755 kupdate.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
+install -m 755 kvariant.sh $RPM_BUILD_ROOT/%{_datadir}/%{name}/
 tar cpf - \
     build/isofs/bootcd.img \
     build/isofs/kernel \
