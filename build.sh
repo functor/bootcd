@@ -174,6 +174,18 @@ function parse_command_line () {
     [ -z "$VARIANT" ] && VARIANT="build"
     [ "$CONSOLE_INFO" == "default" ] && CONSOLE_INFO=$SERIAL_CONSOLE
 
+    if [ -n "$NODE_CONFIGURATION_FILE" ] ; then
+    # check existence of NODE_CONFIGURATION_FILE and normalize as we will change directory
+	if [ ! -f "$NODE_CONFIGURATION_FILE" ] ; then
+	    echo "Node configuration file $NODE_CONFIGURATION_FILE not found - exiting"
+	    exit 1
+	fi
+	cf_dir="$(dirname $NODE_CONFIGURATION_FILE)"
+	cf_dir="$(cd $cf_dir; pwd -P)"
+	cf_file="$(basename $NODE_CONFIGURATION_FILE)"
+	NODE_CONFIGURATION_FILE="$cf_dir"/"$cf_file"
+    fi
+
     # check TYPES 
     local matcher="XXX$(echo $ALL_TYPES | sed -e 's,\W,XXX,g')XXX"
     for t in $TYPES; do
