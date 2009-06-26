@@ -51,13 +51,14 @@ variant=$1; shift
 kernelrpm_url=$1; shift
 [[ -n "$@" ]] && usage
 
-standard_path="/usr/share/bootcd/build"
+basedir=$(cd -P $(dirname $0); pwd)
+standard_path="$basedir/build"
 if [ ! -d $standard_path ] ; then
     echo "Cound not find standard image $standard_path - exiting"
     exit 1
 fi
 
-variant_path=/usr/share/bootcd/$variant
+variant_path="$basedir/$variant"
 if [ -e $variant_path ] ; then
     echo "Found $variant_path - please remove first - exiting"
     exit 1
@@ -114,7 +115,7 @@ mv ${tmpdir}/bootcd.img ${isofsdir}/bootcd.img
 echo -n " bootcd.img"
 echo ""
 
-rm -rf $tmpdir
+rm -rf $tmpdir $kernelrpm
 
 echo "new variant $variant ready"
 trap - ERR
