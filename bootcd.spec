@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 13
+%define taglevel 14
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -93,6 +93,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Mon Jun 29 2009 Marc Fiuczynski <mef@cs.princeton.edu> - BootCD-4.2-14
+- Daniel's update to generalize the kvariant support.
+
 * Wed Apr 08 2009 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-13
 - robust to node config file specified with a relative path
 
