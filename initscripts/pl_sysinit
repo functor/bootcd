@@ -147,3 +147,5 @@ echo $(date "+%H:%M:%S") "pl_sysinit: bringing network online"
 echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: attempting to sync clock"
 /usr/sbin/ntpdate -b -t 10 -u pool.ntp.org
+# save ntp clock to hardware
+/sbin/hwclock --systohc --utc
