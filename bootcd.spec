@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 15
+%define taglevel 16
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -93,6 +93,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Sun Dec 27 2009 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-16
+- fix build on fedora12
+
 * Fri Sep 04 2009 Stephen Soltesz <soltesz@cs.princeton.edu> - BootCD-4.2-15
 - record the ntp time to the hwclock.  this is a bootcd operation, but it is
 - repeated in the bootmanager to handle all CDs without this operation
