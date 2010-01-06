@@ -233,7 +233,9 @@ function build_overlay () {
     for i in "$ISOREF"/isofs/{bootcd.img,kernel}; do
 	ln -s "$i" "${BUILDTMP}/isofs"
     done
-    cp "/usr/lib/syslinux/isolinux.bin" "${BUILDTMP}/isofs"
+    # the syslinux that comes with f12 has this file in a new location
+    cp "/usr/lib/syslinux/isolinux.bin" "${BUILDTMP}/isofs" \
+	|| cp "/usr/share/syslinux/isolinux.bin" "${BUILDTMP}/isofs" 
     ISOFS="${BUILDTMP}/isofs"
 
     # Root of the ISO and USB images
@@ -405,6 +407,7 @@ heads=$heads
 sectors=$sectors
 offset=$offset
 mformat_only
+mtools_skip_check=1
 EOF
     # environment variable for mtools
     export MTOOLSRC="${BUILDTMP}/mtools.conf"
@@ -426,7 +429,7 @@ EOF
     mdel -i "$usb" z:/isolinux.cfg 2>/dev/null || :
     mcopy -i "$usb" "$tmp" z:/syslinux.cfg
     rm -f "$tmp"
-    rm -f "${BUILDTMP}/mtools.conf"
+    rm -f "${MTOOLSRC}"
     unset MTOOLSRC
 
     echo "making USB image bootable."
@@ -442,6 +445,12 @@ function build_usb() {
 
     rm -f "$usb"
     mkfs.vfat -C "$usb" $(($(du -Lsk $ISOFS | awk '{ print $1; }') + $FREE_SPACE))
+
+    cat >${BUILDTMP}/mtools.conf<<EOF
+mtools_skip_check=1
+EOF
+    # environment variable for mtools
+    export MTOOLSRC="${BUILDTMP}/mtools.conf"
 
     # Populate it
     echo -n " populating USB image... "
@@ -460,6 +469,8 @@ EOF
     mdel -i "$usb" ::/isolinux.cfg 2>/dev/null || :
     mcopy -i "$usb" "$tmp" ::/syslinux.cfg
     rm -f "$tmp"
+    rm -f "${MTOOLSRC}"
+    unset MTOOLSRC
 
     echo "making USB image bootable."
     syslinux "$usb"
