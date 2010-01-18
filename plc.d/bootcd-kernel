@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+# priority: 0999
+#
+# $Id$
+# Build BootCD variants with kernels specified in /etc/planetlab/bootcd-variants
+
+# Source function library and configuration
+. /etc/plc.d/functions
+
+# Be verbose
+set -x
+
+case "$1" in
+    start)
+	MESSAGE=$"Creating BootCD variants"
+	dialog "$MESSAGE"
+
+	success=0
+	for i in /usr/share/bootcd-*; do
+		pushd $i
+		basearch=$(echo $i | awk -F- '{ print $NF }')
+		arch=$(echo $basearch | sed 's/i386/i686/')
+		for j in /etc/planetlab/bootcd-variants/*; do
+			name="${j##*/}"
+			url=$(cat "$j" | sed "s!@BASEARCH@!$basearch!g;s!@ARCH@!$arch!g")
+			if test -d "$name"; then
+				test build/isofs/bootcd.img -nt "$name/isofs/bootcd.img" || continue
+			elif test "$name" = default; then
+				# Not ideal, but...
+				grep -q support@planet-lab.org build/isofs/kernel || continue
+			fi
+			if test "$url" != $(echo "$url" | sed s#[:/]##); then
+				./kvariant.sh "$name" "$url"
+			else
+				dir=$(mktemp -d -p /var/tmp)
+				yumdownloader --disablerepo='*' \
+					--enablerepo=base \
+					--enablerepo=updates \
+					--destdir "$dir" "$url"
+				./kvariant.sh "$name" "$dir"/"$url"*
+				rm -fr "$dir"
+			fi
+			if test "$name" = default; then
+				rm -fr orig
+				mv build orig
+				mv default build
+			fi
+		done
+		popd
+	done
+	test $success = 0
+	check
+
+	result "$MESSAGE"
+	;;
+esac
+
+exit $ERRORS

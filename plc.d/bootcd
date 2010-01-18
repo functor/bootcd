@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+# priority: 1000
+#
+# Rebuild the Boot CD
+#
+# Mark Huang <mlhuang@cs.princeton.edu>
+# Copyright (C) 2006 The Trustees of Princeton University
+#
+# $Id$
+#
+
+# Source function library and configuration
+. /etc/plc.d/functions
+. /etc/planetlab/plc_config
+
+# Be verbose
+set -x
+
+case "$1" in
+    start)
+	if [ "$PLC_BOOT_ENABLED" != "1" -a \
+	     "$PLC_WWW_ENABLED" != "1" ] ; then
+	    exit 0
+	fi
+
+	MESSAGE=$"Rebuilding Boot CD"
+	dialog "$MESSAGE"
+
+	########## legacy myplcs - temporary code
+	# create /etc/planetlab/nodefamily if missing
+	[ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo "planetlab-i386" > /etc/planetlab/nodefamily ; }
+	# move if plain directories
+	for legacydir in /usr/share/bootcd /var/www/html/download ; do
+	    if [ -d "${legacydir}" ] && [ ! -h ${legacydir} ] ; then
+		rm -rf ${legacydir}-legacy
+		mv -f ${legacydir} ${legacydir}-legacy
+	    fi
+	done
+	########## end
+
+	# get the default nodefamily
+	def_nodefamily=$(cat /etc/planetlab/nodefamily)
+	
+	# Customize the Boot CD : run build.sh on all available bootcd's
+	shopt -s nullglob
+	for bootcd in /usr/share/bootcd-* ; do
+	    name=$(basename $bootcd)
+	    nodefamily=$(echo $name | sed -e s,bootcd-,,)
+	    download=/var/www/html/download-${nodefamily}
+	    [ -d ${download} ] || mkdir -p ${download}
+
+	    pushd ${download}
+	    ${bootcd}/build.sh ${PLC_BUILD_ALL_BOOTCDS:+-a}
+	    check
+	    popd
+	
+	    # the default: create symlinks to the actual locations
+	    if [ "${nodefamily}" == "${def_nodefamily}" ] ; then
+		rm -rf /usr/share/bootcd
+		ln -s /usr/share/bootcd-${nodefamily} /usr/share/bootcd
+		rm -rf /var/www/html/download
+		ln -s /var/www/html/download-${nodefamily} /var/www/html/download
+	    fi
+	done
+
+	result "$MESSAGE"
+	;;
+esac
+
+exit $ERRORS

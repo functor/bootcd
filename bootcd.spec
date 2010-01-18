@@ -13,6 +13,10 @@
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 %define release %{taglevel}%{?date:.%{date}}
 
+# structure - this results in 2 packages
+# bootcd-initscripts - has the plc.d/ scripts
+# bootcd-<nodefamily> - has the actual stuff for a given nodefamily
+
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
 Distribution: PlanetLab %{plrelease}
@@ -38,7 +42,19 @@ AutoReqProv: no
 
 %description
 The Boot CD securely boots PlanetLab nodes into an immutable
-environment.
+environment. This package is designed to be installed on a MyPLC
+installation and provide the basics for the PLC to able to compute
+BootCDs for its attached nodes. 
+See http://svn.planet-lab.org/wiki/NodeFamily
+
+
+%package -n bootcd-initscripts
+Summary: initscripts for the MyPLC installation
+Group: System Environment/Base
+%description -n bootcd-initscripts
+This package contains the init scripts that get fired when the PLC is
+restarted.
+
 
 %prep
 %setup -q
@@ -69,25 +85,21 @@ tar cpf - \
     configurations | \
     tar -C $RPM_BUILD_ROOT/%{_datadir}/%{name}/ -xpf -
 
+for script in bootcd bootcd-kernel; do 
+    install -D -m 755 plc.d/$script $RPM_BUILD_ROOT/etc/plc.d/$script
+done
 popd
     
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-# If run under sudo
-if [ -n "$SUDO_USER" ] ; then
-    # Allow user to delete the build directory
-    chown -h -R $SUDO_USER .
-    # Some temporary cdroot files like /var/empty/sshd and
-    # /usr/bin/sudo get created with non-readable permissions.
-    find . -not -perm +0600 -exec chmod u+rw {} \;
-    # Allow user to delete the built RPM(s)
-    chown -h -R $SUDO_USER %{_rpmdir}/*
-fi
-
 %files
 %defattr(-,root,root,-)
 %{_datadir}/%{name}
+
+%files -n bootcd-initscripts
+%defattr(-,root,root,-)
+/etc/plc.d
 
 %post
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
@@ -104,7 +116,7 @@ fi
 - repeated in the bootmanager to handle all CDs without this operation
 
 * Mon Jun 29 2009 Marc Fiuczynski <mef@cs.princeton.edu> - BootCD-4.2-14
-- Daniel's update to generalize the kvariant support.
+- Daniel''s update to generalize the kvariant support.
 
 * Wed Apr 08 2009 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-13
 - robust to node config file specified with a relative path
