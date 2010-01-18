@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# priority: 0999
+# priority: 999
 #
 # $Id$
 # Build BootCD variants with kernels specified in /etc/planetlab/bootcd-variants
