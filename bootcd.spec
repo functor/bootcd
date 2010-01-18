@@ -55,6 +55,9 @@ Group: System Environment/Base
 This package contains the init scripts that get fired when the PLC is
 restarted.
 
+### avoid having yum complain about updates, as stuff is moving around
+# plc.d/bootcd*
+Conflicts: MyPLC <= 4.3-37
 
 %prep
 %setup -q
