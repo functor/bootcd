@@ -6,8 +6,8 @@
 %define nodefamily %{pldistro}-%{_arch}
 
 %define name bootcd-%{nodefamily}
-%define version 4.2
-%define taglevel 17
+%define version 5.0
+%define taglevel 0
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -190,4 +190,4 @@ rm -rf $RPM_BUILD_ROOT
 * Fri Sep  2 2005 Mark Huang <mlhuang@cotton.CS.Princeton.EDU> - 
 - Initial build.
 
-%define module_current_branch 3.4
+%define module_current_branch 4.2
