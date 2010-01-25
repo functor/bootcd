@@ -57,7 +57,7 @@ restarted.
 
 ### avoid having yum complain about updates, as stuff is moving around
 # plc.d/bootcd*
-Conflicts: MyPLC <= 4.3-37
+Conflicts: MyPLC <= 4.3
 
 %prep
 %setup -q
