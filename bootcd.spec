@@ -3,7 +3,7 @@
 #
 %define url $URL$
 
-%define nodefamily %{pldistro}-%{_arch}
+%define nodefamily %{pldistro}-%{distroname}-%{_arch}
 
 %define name bootcd-%{nodefamily}
 %define version 5.0

@@ -8,6 +8,7 @@
 # Copyright (C) 2006 The Trustees of Princeton University
 #
 # $Id$
+# $URL$
 #
 
 # Source function library and configuration
@@ -27,23 +28,9 @@ case "$1" in
 	MESSAGE=$"Rebuilding Boot CD"
 	dialog "$MESSAGE"
 
-	########## legacy myplcs - temporary code
-	# create /etc/planetlab/nodefamily if missing
-	[ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo "planetlab-i386" > /etc/planetlab/nodefamily ; }
-	# move if plain directories
-	for legacydir in /usr/share/bootcd /var/www/html/download ; do
-	    if [ -d "${legacydir}" ] && [ ! -h ${legacydir} ] ; then
-		rm -rf ${legacydir}-legacy
-		mv -f ${legacydir} ${legacydir}-legacy
-	    fi
-	done
-	########## end
-
-	# get the default nodefamily
-	def_nodefamily=$(cat /etc/planetlab/nodefamily)
-	
 	# Customize the Boot CD : run build.sh on all available bootcd's
 	shopt -s nullglob
+	# xxx nodefamily xxx - might make sense to detect sequel from older installs
 	for bootcd in /usr/share/bootcd-* ; do
 	    name=$(basename $bootcd)
 	    nodefamily=$(echo $name | sed -e s,bootcd-,,)
@@ -55,13 +42,11 @@ case "$1" in
 	    check
 	    popd
 	
-	    # the default: create symlinks to the actual locations
-	    if [ "${nodefamily}" == "${def_nodefamily}" ] ; then
-		rm -rf /usr/share/bootcd
-		ln -s /usr/share/bootcd-${nodefamily} /usr/share/bootcd
-		rm -rf /var/www/html/download
-		ln -s /var/www/html/download-${nodefamily} /var/www/html/download
-	    fi
+	done
+
+	# just issue a warning about legacy locations
+	for legacy in /usr/share/bootcd /var/www/html/download ; do
+	    [ -e $legacy ] && echo "WARNING: found legacy location $legacy -- ignored"
 	done
 
 	result "$MESSAGE"
