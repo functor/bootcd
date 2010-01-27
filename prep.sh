@@ -84,10 +84,6 @@ if [ -d $bootcd/etc/event.d ] ; then
     popd    
 fi
 
-# Write nodefamily stamp, to help bootmanager do the right thing
-mkdir -p $bootcd/etc/planetlab
-echo $nodefamily > $bootcd/etc/planetlab/nodefamily
-
 # Install fallback node configuration file
 echo "* Installing fallback node configuration file"
 install -D -m 644 usr-boot/default-node.txt $bootcd/usr/boot/default-node.txt

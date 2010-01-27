@@ -104,9 +104,6 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 /etc/plc.d
 
-%post
-[ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
-
 %changelog
 * Sat Jan 09 2010 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-4.2-17
 - support for fedora 12

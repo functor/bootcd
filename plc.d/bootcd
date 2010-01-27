@@ -25,8 +25,7 @@ case "$1" in
 	    exit 0
 	fi
 
-	MESSAGE=$"Rebuilding Boot CD"
-	dialog "$MESSAGE"
+	dialog $"Rebuilding Boot CD"
 
 	# Customize the Boot CD : run build.sh on all available bootcd's
 	shopt -s nullglob
@@ -38,6 +37,7 @@ case "$1" in
 	    [ -d ${download} ] || mkdir -p ${download}
 
 	    pushd ${download}
+	    action $"Rebuilding BootCD" "$name"
 	    ${bootcd}/build.sh ${PLC_BUILD_ALL_BOOTCDS:+-a}
 	    check
 	    popd
