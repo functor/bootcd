@@ -1,9 +1,11 @@
 #!/bin/bash
+# $Id$
+# $URL$
 #
 # priority: 999
 #
-# $Id$
 # Build BootCD variants with kernels specified in /etc/planetlab/bootcd-variants
+#
 
 # Source function library and configuration
 . /etc/plc.d/functions
