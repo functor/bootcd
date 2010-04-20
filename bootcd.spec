@@ -37,6 +37,10 @@ Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 
 Requires: pyplnet
 
+# 5.0 now has 3-fold nodefamily
+%define obsolete_nodefamily %{pldistro}-%{_arch}
+Obsoletes: bootcd-%{obsolete_nodefamily}
+
 AutoReqProv: no
 %define debug_package %{nil}
 
