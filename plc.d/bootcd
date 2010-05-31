@@ -37,8 +37,7 @@ case "$1" in
 	    [ -d ${download} ] || mkdir -p ${download}
 
 	    pushd ${download}
-	    action $"Rebuilding BootCD" "$name"
-	    ${bootcd}/build.sh ${PLC_BUILD_ALL_BOOTCDS:+-a}
+	    action $"Rebuilding BootCD $name" ${bootcd}/build.sh ${PLC_BUILD_ALL_BOOTCDS:+-a}
 	    check
 	    popd
 	
