@@ -67,7 +67,9 @@ Conflicts: MyPLC <= 4.3
 %setup -q
 
 %build
-pushd BootCD
+[ -d bootcd ] || ln -s BootCD bootcd
+
+pushd bootcd
 
 # Build the reference image
 ./prep.sh %{pldistro} %{nodefamily}
@@ -77,7 +79,7 @@ popd
 %install
 rm -rf $RPM_BUILD_ROOT
 
-pushd  BootCD
+pushd bootcd
 
 # Install the reference image and build scripts
 install -d -m 755 $RPM_BUILD_ROOT/%{_datadir}/%{name}
