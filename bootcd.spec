@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.0
-%define taglevel 3
+%define taglevel 4
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -111,6 +111,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Mon Jul 05 2010 Baris Metin <Talip-Baris.Metin@sophia.inria.fr> - BootCD-5.0-4
+- module name changes
+
 * Wed Jun 23 2010 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - BootCD-5.0-3
 - nicer initscript now uses 'action' from /etc/init.d/functions
 
