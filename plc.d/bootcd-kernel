@@ -30,7 +30,7 @@ case "$1" in
 				test build/isofs/bootcd.img -nt "$name/isofs/bootcd.img" || continue
 			elif test "$name" = default; then
 				# Not ideal, but...
-				grep -q support@planet-lab.org build/isofs/kernel || continue
+				grep -q support@ build/isofs/kernel || continue
 			fi
 			if test "$url" != $(echo "$url" | sed s#[:/]##); then
 				./kvariant.sh "$name" "$url"
