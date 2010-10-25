@@ -397,8 +397,12 @@ function build_usb_partition() {
     local cylinders=$(( ($size*1024*2)/($heads*$sectors) ))
     local offset=$(( $sectors*512 ))
 
-    /usr/lib/syslinux/mkdiskimage -M -4 "$usb" $size $heads $sectors
-    
+    if [ -f  /usr/lib/syslinux/mkdiskimage ] ; then
+        /usr/lib/syslinux/mkdiskimage -M -4 "$usb" $size $heads $sectors
+    else
+        mkdiskimage -M -4 "$usb" $size $heads $sectors
+    fi
+
     cat >${BUILDTMP}/mtools.conf<<EOF
 drive z:
 file="${usb}"
