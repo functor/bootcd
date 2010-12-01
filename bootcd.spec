@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.0
-%define taglevel 5
+%define taglevel 6
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -111,6 +111,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Wed Dec 01 2010 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-6
+- use /usr/lib/syslinux/mkdiskimage or installed mkdiskimage
+
 * Wed Sep 01 2010 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-5
 - remove remainging reference to planet-lab.org
 
