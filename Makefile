@@ -1,6 +1,6 @@
 ETAGS=etags
 
 tags:
-	find . -type f -a '!' '(' -name '*.x86' -o -name '*.x86_64' ')' | grep -v '/\.svn/' | xargs $(ETAGS)
+	find . -type f -a '!' '(' -name '*.x86' -o -name '*.x86_64' ')' | egrep -v '/\.(svn|git)/' | xargs $(ETAGS)
 
 .PHONY: tags
