@@ -1,8 +1,4 @@
 #
-# $Id$
-#
-%define url $URL$
-
 %define nodefamily %{pldistro}-%{distroname}-%{_arch}
 
 %define name bootcd-%{nodefamily}
@@ -20,7 +16,7 @@
 Vendor: PlanetLab
 Packager: PlanetLab Central <support@planet-lab.org>
 Distribution: PlanetLab %{plrelease}
-URL: %(echo %{url} | cut -d ' ' -f 2)
+URL: %{SCMURL}
 
 Summary: Boot CD material for %{nodefamily}
 Name: %{name}

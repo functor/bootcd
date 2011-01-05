@@ -7,8 +7,6 @@
 # Mark Huang <mlhuang@cs.princeton.edu>
 # Copyright (C) 2004-2007 The Trustees of Princeton University
 #
-# $Id$
-#
 
 COMMAND=$(basename $0)
 DIRNAME=$(dirname $0)
