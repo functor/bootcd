@@ -548,9 +548,12 @@ EOF
     popd
 
     # update etc/inittab to start with pl_rsysinit
-    sed -i 's,pl_sysinit,pl_rsysinit,' etc/inittab
+    for file in etc/inittab etc/event.d/rcS etc/init/rcS.conf; do
+	[ -f $file ] && sed -i 's,pl_sysinit,pl_rsysinit,' $file
+    done
 
     # modify inittab to have a serial console
+    # xxx this might well be broken with f12 and above xxx
     if [ -n "$serial" ] ; then
 	echo "T0:23:respawn:/sbin/agetty -L $console_dev $console_baud vt100" >> etc/inittab
         # and let root log in
