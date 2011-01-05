@@ -56,12 +56,6 @@ chroot ${bootcd} /usr/sbin/useradd -p "$CRYPT_SA_PASSWORD" -o -g 0 -u 0 -m site_
 echo "* Installing IPMI utilities"
 install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
 
-# Install configuration files
-echo "* Installing configuration files"
-for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
-    install -D -m 644 etc/$file $bootcd/etc/$file
-done
-
 # Install initscripts
 echo "* Installing initscripts"
 for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
@@ -69,16 +63,30 @@ for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
     install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
 
-# connect the scripts for upstart
+# Install configuration files
+echo "* Installing configuration files"
+for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
+    install -D -m 644 etc/$file $bootcd/etc/$file
+done
+# connect our initscripts scripts for upstart
 # fedora 9 comes with /sbin/init from upstart, that uses /etc/event.d instead of inittab
 # (in fact inittab is read for determining the default runlevel)
 if [ -d $bootcd/etc/event.d ] ; then
-    echo "* Tuning /etc/event.d for upstart"
+    echo "* Tuning /etc/event.d/ for upstart"
     pushd $bootcd/etc/event.d
     # use our system initialisation script
-    sed -i -e 's,/etc/rc.d/rc.sysinit[a-z\.]*,/etc/init.d/pl_sysinit,g' *
+    sed -i -e 's,/etc/rc\.d/rc\.sysinit[a-z\.]*,/etc/init.d/pl_sysinit,g' rcS
     # use our startup script in runlevel 2
     sed -i -e 's,/etc/rc\.d/rc[ \t][ \t]*2,/etc/init.d/pl_boot,g' rc2
+    popd    
+elif [ -d $bootcd/etc/init ] ; then
+# ditto for f14 and higher init style
+    echo "* Tuning /etc/init/ for upstart"
+    pushd $bootcd/etc/init
+    # use our system initialisation script
+    sed -i -e 's,/etc/rc\.d/rc\.sysinit[a-z\.]*,/bin/bash -c /etc/init.d/pl_sysinit,g' rcS.conf
+    # use our startup script in runlevel 2
+    sed -i -e 's,/etc/rc.d/rc[a-z\.]*,/etc/init.d/pl_boot,g' rc.conf
     popd    
 fi
 

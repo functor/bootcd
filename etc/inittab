@@ -1,3 +1,7 @@
+# on f8 and below, lines 2 & 3 below allow to hook our scripts instead of the standard rc/rc.d stuff
+# on f12 and above, this file is only used to set the default run level, 
+# and in this case, hooking our stuff is done in prep.sh/build.sh 
+# by patching /etc/event.d/ (f12) or /etc/init/ (>=f14)
 id:2:initdefault:
 si:S:sysinit:/etc/init.d/pl_sysinit
 l2:2:bootwait:/etc/init.d/pl_boot
