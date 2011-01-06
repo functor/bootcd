@@ -44,6 +44,7 @@ environment.
 %setup -q
 
 %build
+[ -d BootCD ] || ln -s bootcd BootCD
 pushd BootCD
 
 # Build the reference image
