@@ -175,7 +175,7 @@ while : ; do
                     done
                 ;;
                 60)
-                    echo $(date "+%H:%M:%S") " This error likely indicates that the hardware clock is not set "
+                    echo $(date "+%H:%M:%S") " This error likely indicates that the hardware clock is likely not set "
                     echo $(date "+%H:%M:%S") " to GMT.  The result is that authentication between the local and "
                     echo $(date "+%H:%M:%S") " remote site fails.  Please double check this machine's system "
                     echo $(date "+%H:%M:%S") " clock, and set it to GMT in the BIOS. If after rebooting the same "
