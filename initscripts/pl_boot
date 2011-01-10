@@ -168,9 +168,10 @@ while : ; do
                     echo $(date "+%H:%M:%S") " we recommend checking your DNS settings.  If you cannot, then "
                     echo $(date "+%H:%M:%S") " please double check your network settings registered at PLC and "
                     echo $(date "+%H:%M:%S") " stored on this Boot Image."
-                    for file in `ls /etc/sysconfig/network-scripts/ifcfg-eth*` ; do 
-                        echo $(date "+%H:%M:%S") $file :
+                    for file in $(ls /etc/sysconfig/network-scripts/ifcfg-eth* /etc/resolv.conf) ; do 
+                        echo $(date "+%H:%M:%S") contents of $file :
                         cat $file
+                        echo $(date "+%H:%M:%S") end of $file :
                     done
                 ;;
                 60)
