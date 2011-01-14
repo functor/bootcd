@@ -128,8 +128,8 @@ find_node_config()
     # devices
     shopt -s nullglob
 
-    for device in /sys/block/[hs]d*; do
-	removable=`cat $device/removable`
+    for device in /sys/block/[hsv]d*; do
+	removable=$(cat $device/removable)
 	if [[ $removable -ne 1 ]]; then
 	    continue
 	fi
