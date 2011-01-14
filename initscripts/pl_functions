@@ -1,0 +1,40 @@
+#-*-shell-script-*-
+
+function verbose_show_message () {
+    echo $(date "+%H:%M:%S") " ==================== " "$@"
+}
+
+function verbose_run_command () {
+    echo $(date "+%H:%M:%S") " ========== running" "$@"
+    "$@"
+    echo $(date "+%H:%M:%S") " ==========" "$@" "returned with retcod=$?"
+}
+
+function pl_network_sanity_checks () {
+    echo $(date "+%H:%M:%S") " ======================================== BEG SANITY CHECKS"
+    for file in $(ls /etc/resolv.conf /etc/sysconfig/network-scripts/ifcfg-eth* ) ; do 
+	verbose_run_command cat $file
+    done
+    verbose_show_message Loaded modules
+    verbose_run_command lsmod
+    verbose_show_message Configured interfaces
+    verbose_run_command ifconfig
+    verbose_show_message Routing table
+    verbose_run_command netstat -rn
+    verbose_show_message Pinging google public DNS 
+    verbose_run_command ping -c 1 -w 5 8.8.8.8
+    # try to resolve this hostname as that's the one used for ntp
+    dnss=$(grep '^nameserver' /etc/resolv.conf 2>/dev/null | awk '{print $2;}')
+    if [ -z "$dnss" ] ; then
+	# not too helpful, but..
+	verbose_show_message No server found in /etc/resolv.conf - Resolving hostname at the google public DNS
+	verbose_run_command host -W 4 pool.ntp.org 8.8.8.8
+    else
+	for dns in $dnss; do
+	    verbose_show_message Resolving hostname at $dns
+	    verbose_run_command host -W 4 pool.ntp.org $dns
+	done
+    fi
+    echo $(date "+%H:%M:%S") " ======================================== END SANITY CHECKS"
+}
+

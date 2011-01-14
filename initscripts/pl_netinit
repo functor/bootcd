@@ -1,4 +1,5 @@
 #!/bin/sh
+#-*-shell-script-*-
 
 # the name of the floppy based network configuration
 # files (checked first). the name planet.cnf is kept

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. /etc/init.d/pl_functions
+
 . /tmp/planet.cnf
 
 # Run gpg once to create default options
@@ -168,11 +170,6 @@ while : ; do
                     echo $(date "+%H:%M:%S") " we recommend checking your DNS settings.  If you cannot, then "
                     echo $(date "+%H:%M:%S") " please double check your network settings registered at PLC and "
                     echo $(date "+%H:%M:%S") " stored on this Boot Image."
-                    for file in $(ls /etc/sysconfig/network-scripts/ifcfg-eth* /etc/resolv.conf) ; do 
-                        echo $(date "+%H:%M:%S") contents of $file :
-                        cat $file
-                        echo $(date "+%H:%M:%S") end of $file :
-                    done
                 ;;
                 60)
                     echo $(date "+%H:%M:%S") " This error likely indicates that the hardware clock is likely not set "
@@ -188,6 +185,9 @@ while : ; do
                     echo $(date "+%H:%M:%S") " with as much detail as possible."
                 ;;
             esac
+	    # in any case display as much info as we can (see pl_functions)
+	    pl_network_sanity_checks
+	    # retry
             continue
         fi
     elif [ -n "$DISCONNECTED_OPERATION" ]; then

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/pl_functions
+
 echo ""
 echo "PlanetLab BootCD - distro @PLDISTRO@ based on @FCDISTRO@"
 
@@ -147,6 +149,9 @@ syslog=/etc/rc.d/init.d/rsyslog
 echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: bringing network online"
 /etc/init.d/pl_netinit
+
+# just in case, sometimes we're seeing weird stuff already at this point
+pl_network_sanity_checks
 
 echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: attempting to sync clock"

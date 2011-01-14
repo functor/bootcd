@@ -58,7 +58,7 @@ install -D -m 755 ipnmac/ipnmac.x86 $bootcd/usr/sbin/ipnmac
 
 # Install initscripts
 echo "* Installing initscripts"
-for file in pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
+for file in pl_functions pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot ; do
     sed -i -e "s,@PLDISTRO@,$pldistro,g" -e "s,@FCDISTRO@,$fcdistro,g" initscripts/$file
     install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
