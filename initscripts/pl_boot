@@ -20,11 +20,11 @@ ATTEMPTS_BEFORE_BACKUP=3
 BOOT_DIR=/usr/boot/
 
 # get the server we are going to be contacting
-BOOT_SERVER=`cat $BOOT_DIR/boot_server`
-BOOT_SERVER_PORT=`cat $BOOT_DIR/boot_server_port`
+BOOT_SERVER=$(cat $BOOT_DIR/boot_server)
+BOOT_SERVER_PORT=$(cat $BOOT_DIR/boot_server_port)
 
 # the file to request from the boot server
-BOOT_SERVER_PATH=`cat $BOOT_DIR/boot_server_path`
+BOOT_SERVER_PATH=$(cat $BOOT_DIR/boot_server_path)
 
 # location of the cacert for this boot server
 BOOT_SERVER_CACERT=$BOOT_DIR/cacert.pem
@@ -33,11 +33,11 @@ BOOT_SERVER_CACERT=$BOOT_DIR/cacert.pem
 BOOT_SERVER_GPG_KEYRING=$BOOT_DIR/pubring.gpg
 
 # get the backup server we are going to be contacting
-BACKUP_BOOT_SERVER=`cat $BOOT_DIR/backup/boot_server`
-BACKUP_BOOT_SERVER_PORT=`cat $BOOT_DIR/backup/boot_server_port`
+BACKUP_BOOT_SERVER=$(cat $BOOT_DIR/backup/boot_server)
+BACKUP_BOOT_SERVER_PORT=$(cat $BOOT_DIR/backup/boot_server_port)
 
 # the file to request from the backup boot server
-BACKUP_BOOT_SERVER_PATH=`cat $BOOT_DIR/backup/boot_server_path`
+BACKUP_BOOT_SERVER_PATH=$(cat $BOOT_DIR/backup/boot_server_path)
 
 # location of the cacert for the backup boot server
 BACKUP_BOOT_SERVER_CACERT=$BOOT_DIR/backup/cacert.pem
