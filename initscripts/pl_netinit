@@ -290,10 +290,9 @@ fi
 /sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
 if [[ $? -ne 0 ]]; then
     echo $(date "+%H:%M:%S") " pl_netinit: device $ETH_DEVICE does not exist, most likely"
-    echo $(date "+%H:%M:%S") " pl_netinit: this cd does not have hardware support for your"
+    echo $(date "+%H:%M:%S") " pl_netinit: this CD does not have hardware support for your"
     echo $(date "+%H:%M:%S") " pl_netinit: network adapter. please send the following lines"
-    echo $(date "+%H:%M:%S") " pl_netinit: to PlanetLab Support: support@planet-lab.org"
-    echo $(date "+%H:%M:%S") " pl_netinit: for further assistance"
+    echo $(date "+%H:%M:%S") " pl_netinit: to your PlanetLab support for further assistance"
     echo
     /sbin/lspci -n | /bin/grep "Class 0200"    
     echo
