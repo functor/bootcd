@@ -134,7 +134,7 @@ find_node_config()
 	    continue
 	fi
 
-	partitions=$(/bin/awk "\$4 ~ /`basename $device`[0-9]*/ { print \$4 }" /proc/partitions)
+	partitions=$(/bin/awk "\$4 ~ /$(basename $device)[0-9]*/ { print \$4 }" /proc/partitions)
 	for partition in $partitions ; do
 	    check_dev=/dev/$partition
 
@@ -256,7 +256,7 @@ if [[ -n "$NET_DEVICE" ]]; then
 
     pushd /sys/class/net
     for device in *; do
-	dev_address=`cat $device/address | tr A-Z a-z`
+	dev_address=$(cat $device/address | tr A-Z a-z)
 	if [ "$device" == "$NET_DEVICE" -o "$dev_address" == "$NET_DEVICE" ]; then
 	    ETH_DEVICE=$device
 	    echo $(date "+%H:%M:%S") " pl_netinit: found device $ETH_DEVICE with mac address $dev_address"
