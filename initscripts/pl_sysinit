@@ -140,6 +140,10 @@ echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: configuring kernel parameters"
 /sbin/sysctl -e -p /etc/sysctl.conf
 
+# startup rsyslog if available (we're *NOT* running the standard rc)
+syslog=/etc/rc.d/init.d/rsyslog
+[ -x $syslog ] && $syslog start
+
 echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: bringing network online"
 /etc/init.d/pl_netinit
