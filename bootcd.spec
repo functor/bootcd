@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 18
+%define taglevel 19
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -94,6 +94,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Jan 18 2011 S.Çağlar Onur <caglar@cs.princeton.edu> - bootcd-4.2-19
+- Introduce a quick hack for 2.6.32 based BootCD
+
 * Thu Jan 06 2011 S.Çağlar Onur <caglar@cs.princeton.edu> - bootcd-4.2-18
 - handle directory name changes
 
