@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.0
-%define taglevel 6
+%define taglevel 7
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -107,6 +107,14 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Sun Jan 23 2011 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-7
+- changes for booting off fedora14
+- displays some sanity checks in case bm can's get downloaded
+- virtio devices in /dev/vd* also considered
+- start service rsyslog if found
+- hack for kernel-firmware with 2.6.32
+- use $() instead of ``
+
 * Wed Dec 01 2010 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-6
 - use /usr/lib/syslinux/mkdiskimage or installed mkdiskimage
 
