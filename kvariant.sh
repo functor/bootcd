@@ -49,9 +49,6 @@ set -e
 variant=$1; shift
 [[ -z "$@" ]] && usage
 kernelrpm_url=$1; shift
-if [[ -n "$@" ]] ; then
-    extrarpm_url=$1; shift
-fi
 [[ -n "$@" ]] && usage
 
 basedir=$(cd -P $(dirname $0); pwd)
@@ -76,12 +73,6 @@ kernelrpm=$variant_path/$(basename $kernelrpm_url)
 getrpm $kernelrpm_url $kernelrpm
 checkrpm $kernelrpm
 
-if [ -n "$extrarpm_url" ] ; then
-    extrarpm=$variant_path/$(basename $extrarpm_url)
-    getrpm $extrarpm_url $extrarpm
-    checkrpm $extrarpm
-fi
-
 isofsdir=$variant_path/isofs
 
 tmpdir=
@@ -99,10 +90,6 @@ rm -rf boot/*
 rm -rf lib/modules
 echo "Replacing with new kernel"
 rpm2cpio  $kernelrpm | cpio -diu
-if [ -n $"extrarpm_url" ] ; then
-    echo "Unpacking $extrarpm"
-    rpm2cpio  $extrarpm | cpio -diu
-fi
 echo "Running depmod"
 version=$(cd ./boot && ls vmlinuz* | sed 's,vmlinuz-,,')
 depmod -b . $version
@@ -128,7 +115,7 @@ mv ${tmpdir}/bootcd.img ${isofsdir}/bootcd.img
 echo -n " bootcd.img"
 echo ""
 
-rm -rf $tmpdir $kernelrpm $extrarpm
+rm -rf $tmpdir $kernelrpm
 
 echo "new variant $variant ready"
 trap - ERR
