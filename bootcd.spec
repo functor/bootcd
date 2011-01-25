@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 19
+%define taglevel 20
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -94,6 +94,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Jan 25 2011 S.Çağlar Onur <caglar@cs.princeton.edu> - bootcd-4.2-20
+- Revert hacky solution for 2.6.32 based kernels as they are no longer required
+
 * Tue Jan 18 2011 S.Çağlar Onur <caglar@cs.princeton.edu> - bootcd-4.2-19
 - Introduce a quick hack for 2.6.32 based BootCD
 
