@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.0
-%define taglevel 7
+%define taglevel 8
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -107,6 +107,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Tue Jan 25 2011 S.Çağlar Onur <caglar@cs.princeton.edu> - bootcd-5.0-8
+- Revert hacky solution for 2.6.32 based kernels as they are no longer required
+
 * Sun Jan 23 2011 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-7
 - changes for booting off fedora14
 - displays some sanity checks in case bm can's get downloaded
