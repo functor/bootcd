@@ -49,6 +49,9 @@ set -e
 variant=$1; shift
 [[ -z "$@" ]] && usage
 kernelrpm_url=$1; shift
+if [[ -n "$@" ]] ; then
+    extrarpm_url=$1; shift
+fi
 [[ -n "$@" ]] && usage
 
 basedir=$(cd -P $(dirname $0); pwd)
@@ -73,8 +76,7 @@ kernelrpm=$variant_path/$(basename $kernelrpm_url)
 getrpm $kernelrpm_url $kernelrpm
 checkrpm $kernelrpm
 
-if echo ${kernelrpm} | grep -q kernel-2.6.32 ; then
-    extrarpm_url=`echo $kernelrpm_url | sed -e "s:kernel-2.6.32:kernel-firmware-2.6.32:g"`
+if [ -n "$extrarpm_url" ] ; then
     extrarpm=$variant_path/$(basename $extrarpm_url)
     getrpm $extrarpm_url $extrarpm
     checkrpm $extrarpm
