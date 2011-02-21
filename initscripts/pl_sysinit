@@ -147,5 +147,22 @@ echo $(date "+%H:%M:%S") "pl_sysinit: bringing network online"
 echo ""
 echo $(date "+%H:%M:%S") "pl_sysinit: attempting to sync clock"
 /usr/sbin/ntpdate -b -t 10 -u pool.ntp.org
+
+# Handle /dev/rtc name change for newer kernels
+# otherwise hwclock fails
+baseMaj=`uname -r | cut -d "." -f1`
+baseMin=`uname -r | cut -d "." -f2`
+vers=`uname -r | cut -d "." -f3 | cut -d "-" -f1`
+if [ $baseMaj -eq 2 ];then
+    if [ $baseMin -eq 6 ]; then
+        if [ $vers -ge 32 ];then
+            if [ "$(readlink /dev/rtc)" != "/dev/rtc0" ]; then
+                rm -f /dev/rtc
+                ln -s /dev/rtc0 /dev/rtc
+            fi
+        fi
+    fi
+fi
+
 # save ntp clock to hardware
 /sbin/hwclock --systohc --utc
