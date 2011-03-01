@@ -31,6 +31,18 @@ def main(argv):
     else:
         path = "/lib/modules/%s/modules.pcimap" % kernel
 
+    blacklisted_modules = []
+    blacklists = ("blacklist", "blacklist-compat", "blacklist-firewire")
+    for blacklist in blacklists:
+        blf = "/etc/modprobe.d/%s" % blacklist
+        if os.path.exists(blf):
+	    f = open(blf)
+            for i in f.readlines():
+                if i.startswith("blacklist"):
+                    blacklisted_modules.append(i.split()[1])
+    # unify the list
+    blacklisted_modules = list(set(blacklisted_modules))
+
     pcimap = pypcimap.PCIMap(path)
     print now(),"pl_hwinit: loading applicable modules"
     devices = pypci.get_devices()
@@ -54,8 +66,9 @@ def main(argv):
 
             # FIXME: This needs improved logic in the case of multiple matching modules
             for module in modules:
-                print now(),"pl_hwinit: found and loading module %s (%s)" % (module, slot)
-                modprobe(module)
+                if module not in blacklisted_modules:
+                    print now(),"pl_hwinit: found and loading module %s (%s)" % (module, slot)
+                    modprobe(module)
 
     if network_devices == 0:
         print now(),"pl_hwinit: no supported network devices found!"
