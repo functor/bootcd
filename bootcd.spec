@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 21
+%define taglevel 22
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -94,6 +94,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Tue Mar 08 2011 S.Çağlar Onur <caglar@verivue.com> - bootcd-4.2-22
+- Support virtio block devices
+
 * Tue Mar 01 2011 S.Çağlar Onur <caglar@verivue.com> - bootcd-4.2-21
 - do not try to load blacklisted modules
 - handle /dev/rtc name change for newer kernels
