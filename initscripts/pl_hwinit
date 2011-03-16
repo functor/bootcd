@@ -32,7 +32,7 @@ def main(argv):
         path = "/lib/modules/%s/modules.pcimap" % kernel
 
     blacklisted_modules = []
-    blacklists = ("blacklist", "blacklist-compat", "blacklist-firewire")
+    blacklists = os.listdir("/etc/modprobe.d")
     for blacklist in blacklists:
         blf = "/etc/modprobe.d/%s" % blacklist
         if os.path.exists(blf):
