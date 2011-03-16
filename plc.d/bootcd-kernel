@@ -23,7 +23,7 @@ case "$1" in
 		pushd $i
 		basearch=$(echo $i | awk -F- '{ print $NF }')
 		arch=$(echo $basearch | sed 's/i386/i686/')
-		for j in /etc/planetlab/bootcd-variants/*; do
+		for j in $(ls -d /etc/planetlab/bootcd-variants/* 2> /dev/null); do
 			name="${j##*/}"
 			url=$(cat "$j" | sed "s!@BASEARCH@!$basearch!g;s!@ARCH@!$arch!g")
 			if test -d "$name"; then

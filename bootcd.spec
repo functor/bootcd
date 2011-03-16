@@ -30,6 +30,8 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildArch: noarch
 
 Requires: dosfstools, mkisofs, gzip, mtools, syslinux
+# yumdownloader is needed in bootcd-kernel
+Requires: yum-utils
 
 Requires: pyplnet
 

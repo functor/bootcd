@@ -59,7 +59,7 @@ if [ ! -d $standard_path ] ; then
 fi
 
 variant_path="$basedir/$variant"
-if [ -e $variant_path ] ; then
+if [ -e "$variant_path" ] ; then
     echo "Found $variant_path - please remove first - exiting"
     exit 1
 fi
