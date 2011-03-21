@@ -7,7 +7,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 4.2
-%define taglevel 24
+%define taglevel 25
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -96,6 +96,9 @@ fi
 [ -f /etc/planetlab/nodefamily ] || { mkdir -p /etc/planetlab ; echo %{nodefamily} > /etc/planetlab/nodefamily ; }
 
 %changelog
+* Mon Mar 21 2011 S.Çağlar Onur <caglar@verivue.com> - bootcd-4.2-25
+- requires yum-utils for yumdownloader in bootcd-kernel
+
 * Tue Mar 15 2011 S.Çağlar Onur <caglar@verivue.com> - bootcd-4.2-24
 - Remove hardcoded file list
 
