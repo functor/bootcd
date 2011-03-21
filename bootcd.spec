@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.0
-%define taglevel 9
+%define taglevel 10
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -109,6 +109,10 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Mon Mar 21 2011 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-10
+- blacklisted mdules
+- requires yum-utils for yumdownloader in bootcd-kernel
+
 * Mon Feb 21 2011 S.Çağlar Onur <caglar@verivue.com> - bootcd-5.0-9
 - Handle /dev/rtc name change for newer kernels
 
