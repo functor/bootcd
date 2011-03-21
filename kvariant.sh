@@ -53,13 +53,13 @@ kernelrpm_url=$1; shift
 
 basedir=$(cd -P $(dirname $0); pwd)
 standard_path="$basedir/build"
-if [ ! -d $standard_path ] ; then
+if [ ! -d "$standard_path" ] ; then
     echo "Cound not find standard image $standard_path - exiting"
     exit 1
 fi
 
 variant_path="$basedir/$variant"
-if [ -e $variant_path ] ; then
+if [ -e "$variant_path" ] ; then
     echo "Found $variant_path - please remove first - exiting"
     exit 1
 fi
