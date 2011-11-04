@@ -32,6 +32,11 @@ BuildArch: noarch
 Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 # yumdownloader is needed in bootcd-kernel
 Requires: yum-utils
+# mkdiskimage is used for USB-partitioned mode
+# but it now comes in a separate rpm
+%if "%{distro}" == "Fedora" && %{distrorelease} >= 12
+Requires: syslinux-perl
+%endif
 
 Requires: pyplnet
 
