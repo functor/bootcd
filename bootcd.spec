@@ -34,7 +34,7 @@ Requires: dosfstools, mkisofs, gzip, mtools, syslinux
 Requires: yum-utils
 # mkdiskimage is used for USB-partitioned mode
 # but it now comes in a separate rpm
-%if "%{distro}" == "Fedora" && %{distrorelease} >= 14
+%if "%{distro}" == "Fedora" && "%{distrorelease}" >= 14
 Requires: syslinux-perl
 %endif
 
