@@ -1,0 +1,10 @@
+[Unit]
+Description=pl_sysinit service
+Before=pl_boot.target
+#After=syslog.target ntpdate.service
+
+[Service]
+ExecStart=/etc/init.d/pl_sysinit
+
+[Install]
+WantedBy=pl_sysinit.target

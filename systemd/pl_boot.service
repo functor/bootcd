@@ -1,0 +1,9 @@
+[Unit]
+Description=pl_boot service
+After=pl_sysinit.target
+
+[Service]
+ExecStart=/etc/init.d/pl_boot
+
+[Install]
+WantedBy=pl_boot.target
