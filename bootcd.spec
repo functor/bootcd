@@ -104,8 +104,8 @@ mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
 mkdir -p $RPM_BUILD_ROOT/etc/systemd/system
 cp -pr systemd/* $RPM_BUILD_ROOT/lib/systemd/system
 ln -sf /lib/systemd/system/pl_boot.target $RPM_BUILD_ROOT/etc/systemd/system/default.target
-mkdir -p $RPM_BUILD_ROOT/etc/systemd/system/pl_boot.target.wants
-mkdir -p $RPM_BUILD_ROOT/etc/systemd/system/pl_sysinit.target.wants
+mkdir -p $RPM_BUILD_ROOT/lib/systemd/system/pl_boot.target.wants
+mkdir -p $RPM_BUILD_ROOT/lib/systemd/system/pl_sysinit.target.wants
 ln -sf /lib/systemd/system/pl_boot.service $RPM_BUILD_ROOT/lib/systemd/system/pl_boot.target.wants/pl_boot.service
 ln -sf /lib/systemd/system/pl_sysinit.service $RPM_BUILD_ROOT/lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
 popd
