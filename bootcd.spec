@@ -100,6 +100,12 @@ tar cpf - \
 for script in bootcd bootcd-kernel; do 
     install -D -m 755 plc.d/$script $RPM_BUILD_ROOT/etc/plc.d/$script
 done
+
+#systemd files
+mkdir -p /lib/systemd/system
+mkdir -p /etc/systemd/system
+cp -pr systemd/* /lib/systemd/system
+ln -sf /lib/systemd/system/pl_boot.target /etc/systemd/system/default.target
 popd
     
 %clean
@@ -112,6 +118,8 @@ rm -rf $RPM_BUILD_ROOT
 %files -n bootcd-initscripts
 %defattr(-,root,root,-)
 /etc/plc.d
+/lib/systemd/system
+/etc/systemd/system
 
 %changelog
 * Mon Nov 07 2011 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-11
