@@ -100,12 +100,12 @@ for script in bootcd bootcd-kernel; do
 done
 
 #systemd files
-mkdir -p /lib/systemd/system
-mkdir -p /etc/systemd/system
-cp -pr systemd/* /lib/systemd/system
-ln -sf /lib/systemd/system/pl_boot.target /etc/systemd/system/default.target
-ln -sf /lib/systemd/system/pl_boot.service /lib/systemd/system/pl_boot.target.wants/pl_boot.service
-ln -sf /lib/systemd/system/pl_sysinit.service /lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
+mkdir -p $RPM_BUILD_ROOT/lib/systemd/system
+mkdir -p $RPM_BUILD_ROOT/etc/systemd/system
+cp -pr systemd/* $RPM_BUILD_ROOT/lib/systemd/system
+ln -sf $RPM_BUILD_ROOT/lib/systemd/system/pl_boot.target $RPM_BUILD_ROOT/etc/systemd/system/default.target
+ln -sf $RPM_BUILD_ROOT/lib/systemd/system/pl_boot.service $RPM_BUILD_ROOT/lib/systemd/system/pl_boot.target.wants/pl_boot.service
+ln -sf $RPM_BUILD_ROOT/lib/systemd/system/pl_sysinit.service $RPM_BUILD_ROOT/lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
 popd
     
 %clean
