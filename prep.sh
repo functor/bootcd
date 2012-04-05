@@ -63,6 +63,18 @@ for file in pl_functions pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot
     install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
 
+# Install systemd files
+echo "* Installing systemd files"
+for file in pl_boot.service pl_boot.target pl_sysinit.service pl_sysinit.target; do
+    install -D -m 644 systemd/$file $bootcd/lib/systemd/system
+done
+ln -sf /lib/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
+mkdir -p $bootcd/lib/systemd/system/pl_boot.target.wants
+mkdir -p $bootcd/lib/systemd/system/pl_sysinit.target.wants
+ln -sf /lib/systemd/system/pl_boot.service $bootcd/lib/systemd/system/pl_boot.target.wants/pl_boot.service
+ln -sf /lib/systemd/system/pl_sysinit.service $bootcd/lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
+
+
 # Install configuration files
 echo "* Installing configuration files"
 for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
