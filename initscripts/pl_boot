@@ -107,11 +107,7 @@ while : ; do
 
     if [[ $contact_count != 0 ]]; then
 
-        if [[ $on_backup_server == 1 ]]; then
-            echo $(date "+%H:%M:%S") " pl_boot: attempting to fetch script from backup server in 30s"
-        else
-            echo $(date "+%H:%M:%S") " pl_boot: attempting to fetch script from primary server in 30s"
-        fi
+        echo $(date "+%H:%M:%S") " pl_boot: next attempt in 30s, to fetch script from server at $CONNECT_BOOT_SERVER"
 	/bin/sleep 30
     fi
 
