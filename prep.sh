@@ -43,6 +43,7 @@ rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 > build/v
 echo $nodefamily > build/nodefamily
 
 # Install base system
+echo "* Creating fedora root image"
 pl_root_makedevs $bootcd
 pkgsfile=$(pl_locateDistroFile ../build/ $pldistro bootcd.pkgs) 
 pl_root_mkfedora $bootcd $pldistro $pkgsfile
