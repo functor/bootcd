@@ -64,18 +64,6 @@ for file in pl_functions pl_sysinit pl_hwinit pl_netinit pl_validateconf pl_boot
     install -D -m 755 initscripts/$file $bootcd/etc/init.d/$file
 done
 
-# Install systemd files
-echo "* Installing systemd files"
-for file in pl_boot.service pl_boot.target pl_sysinit.service pl_sysinit.target; do
-    install -D -m 644 systemd/$file $bootcd/lib/systemd/system
-done
-ln -sf /lib/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
-mkdir -p $bootcd/lib/systemd/system/pl_boot.target.wants
-mkdir -p $bootcd/lib/systemd/system/pl_sysinit.target.wants
-ln -sf /lib/systemd/system/pl_boot.service $bootcd/lib/systemd/system/pl_boot.target.wants/pl_boot.service
-ln -sf /lib/systemd/system/pl_sysinit.service $bootcd/lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
-
-
 # Install configuration files
 echo "* Installing configuration files"
 for file in fstab mtab modprobe.conf inittab hosts sysctl.conf ; do
@@ -92,8 +80,9 @@ if [ -d $bootcd/etc/event.d ] ; then
     # use our startup script in runlevel 2
     sed -i -e 's,/etc/rc\.d/rc[ \t][ \t]*2,/etc/init.d/pl_boot,g' rc2
     popd    
-elif [ -d $bootcd/etc/init ] ; then
+fi
 # ditto for f14 and higher init style
+if [ -d $bootcd/etc/init ] ; then
     echo "* Tuning /etc/init/ for upstart"
     pushd $bootcd/etc/init
     # use our system initialisation script
@@ -101,6 +90,21 @@ elif [ -d $bootcd/etc/init ] ; then
     # use our startup script in runlevel 2
     sed -i -e 's,/etc/rc.d/rc[a-z\.]*,/etc/init.d/pl_boot,g' rc.conf
     popd    
+fi
+# Install systemd files for f16 and above
+# NOTE: pl_sysinit is actually invoked in the pl_boot service file
+# ExecStartPre=/etc/init.d/pl_sysinit
+# this is auick and dirty but does the job
+if [ -d $bootcd/etc/systemd/system ] ; then
+    echo "* Installing systemd files"
+    for file in pl_boot.service pl_boot.target pl_sysinit.service pl_sysinit.target; do
+	install -D -m 644 systemd/$file $bootcd/lib/systemd/system
+    done
+    ln -sf /lib/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
+    mkdir -p $bootcd/lib/systemd/system/pl_boot.target.wants
+    mkdir -p $bootcd/lib/systemd/system/pl_sysinit.target.wants
+    ln -sf /lib/systemd/system/pl_boot.service $bootcd/lib/systemd/system/pl_boot.target.wants/pl_boot.service
+    ln -sf /lib/systemd/system/pl_sysinit.service $bootcd/lib/systemd/system/pl_sysinit.target.wants/pl_sysinit.service
 fi
 
 # Install fallback node configuration file
