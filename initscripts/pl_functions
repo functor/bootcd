@@ -19,6 +19,8 @@ function pl_network_sanity_checks () {
     verbose_run_command lsmod
     verbose_show_message Configured interfaces
     verbose_run_command ifconfig
+    verbose_show_message cat /proc/net/dev
+    verbose_run_command cat /proc/net/dev
     verbose_show_message Routing table
     verbose_run_command netstat -rn
     BOOT_FILE=/usr/boot/boot_server
