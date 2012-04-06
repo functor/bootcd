@@ -332,6 +332,10 @@ EOF
 
     [ -n "$IS_SERIAL" ] && KERNEL_ARGS="$KERNEL_ARGS ${console_spec}"
 
+    # tmp: should be restricted to f15 nodes and above
+    # making sure the network interfaces are still numbered eth0 and above
+    KERNEL_ARGS="$KERNEL_ARGS biosdevname=0"
+
     [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
 
     # Pack overlay files into a compressed archive
