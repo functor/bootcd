@@ -28,7 +28,7 @@ OUTPUT_BASE=
 DRY_RUN=""
 OUTPUT_NAME=""
 TYPES=""
-KARGS_STR=""
+KERNEL_ARGS=""
 
 # various globals
 BUILDTMP=""
@@ -41,7 +41,6 @@ console_dev=""
 console_baud=""
 console_spec=""
 console_serial_line=""
-kernel_args=""
 
 
 #################### compute all supported types
@@ -161,7 +160,7 @@ function parse_command_line () {
 	    o) OUTPUT_NAME="$OPTARG" ;;
 	    C) CUSTOM_DIR="$OPTARG" ;;
 	    V) VARIANT="$OPTARG" ;;
-	    k) KARGS_STR="$KARGS_STR $OPTARG" ;;
+	    k) KERNEL_ARGS="$KERNEL_ARGS $OPTARG" ;;
 	    n) DRY_RUN=true ;;
 	    h|*) usage ;;
 	esac
@@ -331,14 +330,9 @@ EOF
 	plnet -- --root $OVERLAY --files-only --program BootCD $NODE_ID
     fi
 
-    if [ -n "$IS_SERIAL" ] ; then
-	KARGS_STR="$KARGS_STR ${console_spec}"
-    fi
+    [ -n "$IS_SERIAL" ] && KERNEL_ARGS="$KERNEL_ARGS ${console_spec}"
 
-    if [ -n "$KARGS_STR" ] ; then
-	echo "$KARGS_STR" > $OVERLAY/kargs.txt
-	kernel_args=$KARGS_STR
-    fi
+    [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
 
     # Pack overlay files into a compressed archive
     echo "* Compressing overlay image"
@@ -370,7 +364,7 @@ function build_iso() {
     cat >$ISOFS/isolinux.cfg <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -423,7 +417,7 @@ EOF
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -463,7 +457,7 @@ EOF
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -625,7 +619,7 @@ function build_iso_cramfs() {
     cat >$tmp/isolinux.cfg <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${kernel_args}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${KERNEL_ARGS}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -663,7 +657,7 @@ function build_usb_cramfs() {
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${kernel_args}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${KERNEL_ARGS}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
