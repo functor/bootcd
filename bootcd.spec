@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.1
-%define taglevel 0
+%define taglevel 1
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -115,6 +115,11 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Wed Apr 11 2012 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-1
+- compatible with pre- and post- f16
+- add systemd friendlyness to bootcd
+- also add biosdevname=0 tp kernel args so ethernet devices are still named in eth<x>
+
 * Mon Nov 07 2011 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.0-11
 - add requires: to syslinux-perl on fedora14
 
