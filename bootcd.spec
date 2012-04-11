@@ -2,8 +2,8 @@
 %define nodefamily %{pldistro}-%{distroname}-%{_arch}
 
 %define name bootcd-%{nodefamily}
-%define version 5.0
-%define taglevel 11
+%define version 5.1
+%define taglevel 0
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
