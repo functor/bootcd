@@ -8,11 +8,5 @@
 # See systemd.special(7) for details
 
 [Unit]
-Description=pl_boot
-#Requires=basic.target
-#Conflicts=rescue.service rescue.target
-#After=basic.target rescue.service rescue.target
-#AllowIsolate=yes
-
-#[Install]
-#Alias=default.target
+Description=pl_boot BootCD default target
+Requires=pl_boot.service

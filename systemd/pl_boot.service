@@ -1,10 +1,8 @@
 [Unit]
 Description=pl_boot service
-After=pl_sysinit.target
 
 [Service]
-ExecStartPre=/etc/init.d/pl_sysinit
 ExecStart=/etc/init.d/pl_boot
+ExecStartPre=/etc/init.d/pl_sysinit
+Type=oneshot
 
-[Install]
-WantedBy=pl_boot.target
