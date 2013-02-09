@@ -337,8 +337,9 @@ EOF
     KERNEL_ARGS="$KERNEL_ARGS biosdevname=0"
     # making sure selinux is turned off - somehow this is needed with lxc/f14
     KERNEL_ARGS="$KERNEL_ARGS selinux=0"
-    # set default target for systemd
-    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
+# cannot use this mecahnism to set systemd default target because this applies to kexec boots as well
+#    # set default target for systemd
+#    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
     # output more systemd-related messages on the console
     KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.log_target=kmsg"
     [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
