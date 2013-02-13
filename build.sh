@@ -341,7 +341,7 @@ EOF
 #    # set default target for systemd
 #    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
     # output more systemd-related messages on the console
-    KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.log_target=kmsg"
+    KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.log_target=console"
     [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
 
     # Pack overlay files into a compressed archive
