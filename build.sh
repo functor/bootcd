@@ -12,6 +12,10 @@ COMMAND=$(basename $0)
 DIRNAME=$(dirname $0)
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
+DEBUG_SYSTEMD=""
+# temporary
+DEBUG_SYSTEMD=true
+
 # defaults
 DEFAULT_TYPES="usb iso"
 # Leave 4 MB of free space
@@ -341,7 +345,9 @@ EOF
 #    # set default target for systemd
 #    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
     # output more systemd-related messages on the console
-    KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.log_target=console"
+    KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console"
+    # this slows down system init but is very helpful when e.g. trying to run on a new distro
+    [ -n "$DEBUG_SYSTEMD" ] && KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.journald.forward_to_console=1"
     [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
 
     # Pack overlay files into a compressed archive
