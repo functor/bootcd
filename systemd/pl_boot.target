@@ -10,3 +10,4 @@
 [Unit]
 Description=pl_boot BootCD default target
 Requires=pl_boot.service
+After=getty@tty2.service

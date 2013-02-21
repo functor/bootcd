@@ -95,10 +95,12 @@ fi
 if [ -d $bootcd/etc/systemd/system ] ; then
     echo "* Installing systemd files"
     for file in pl_boot.service pl_boot.target ; do
-	install -D -m 644 systemd/$file $bootcd/etc/systemd/system
+        install -D -m 644 systemd/$file $bootcd/etc/systemd/system
     done
+    echo "* Enabling getty on tty2"
     # select pl_boot target this way instead of using kargs, as kargs apply to kexec boot as well
     ln -sf /etc/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
+    ln -sf /usr/lib/systemd/system/getty@.service $bootcd/etc/systemd/system/default.target.wants/getty@tty2.service
 fi
 
 # Install fallback node configuration file
