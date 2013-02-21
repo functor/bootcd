@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.1
-%define taglevel 2
+%define taglevel 3
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -115,6 +115,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Thu Feb 21 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-3
+- reviewed for systemd & f18
+
 * Mon May 07 2012 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-2
 - turn off selinux, turns out needed with some combinations like lxc/f14
 
