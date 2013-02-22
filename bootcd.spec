@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.1
-%define taglevel 3
+%define taglevel 4
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -115,6 +115,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Fri Feb 22 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-4
+- turn on getty/console on tty2
+
 * Thu Feb 21 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-3
 - reviewed for systemd & f18
 
