@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.1
-%define taglevel 4
+%define taglevel 5
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -115,6 +115,10 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Tue Feb 26 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-5
+- fix console on tty2: this broke the build on fedora14
+- even though f14 doesn't use systemd by defaults there is /etc/systemd in there
+
 * Fri Feb 22 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-4
 - turn on getty/console on tty2
 
