@@ -13,9 +13,8 @@ DIRNAME=$(dirname $0)
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 DEBUG_SYSTEMD=""
-# turn this on to get systemd's full log on console (slows things down)
+# uncomment this on to get systemd's full log on console (slows things down)
 #DEBUG_SYSTEMD=true
-DEBUG_SYSTEMD=false
 
 # defaults
 DEFAULT_TYPES="usb iso"
