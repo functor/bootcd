@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.2
-%define taglevel 0
+%define taglevel 1
 
 # pldistro already in the rpm name
 #%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
@@ -115,6 +115,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Thu Mar 07 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-1
+- turn off systemd traces at boot-time
+
 * Tue Feb 26 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.1-5
 - fix console on tty2: this broke the build on fedora14
 - even though f14 doesn't use systemd by defaults there is /etc/systemd in there
