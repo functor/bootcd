@@ -39,7 +39,7 @@ bootcd=$PWD/build/bootcd
 install -d -m 755 $bootcd
 
 # Write version number
-rpmquery --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 > build/version.txt
+rpm -q --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 > build/version.txt
 echo $nodefamily > build/nodefamily
 
 # Install base system
