@@ -28,6 +28,7 @@ export PATH
 
 pldistro=$1 ; shift
 nodefamily=$1; shift
+rpmversion=$1; shift
 
 # Packages to install, junk and precious : see build/<pldistro>/bootcd.pkgs
 
@@ -39,8 +40,8 @@ bootcd=$PWD/build/bootcd
 install -d -m 755 $bootcd
 
 # Write version number
-rpm -q --specfile bootcd.spec --queryformat '%{VERSION}\n' | head -1 > build/version.txt
-echo $nodefamily > build/nodefamily
+echo ${rpmversion} > build/version.txt
+echo ${nodefamily} > build/nodefamily
 
 # Install base system
 echo "* Creating fedora root image"

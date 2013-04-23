@@ -6,7 +6,6 @@
 %define taglevel 1
 
 # pldistro already in the rpm name
-#%define release %{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
 %define release %{taglevel}%{?date:.%{date}}
 
 # structure - this results in 2 packages
@@ -75,7 +74,7 @@ Conflicts: MyPLC <= 4.3
 pushd bootcd
 
 # Build the reference image
-./prep.sh %{pldistro} %{nodefamily}
+./prep.sh %{pldistro} %{nodefamily} %{version}-%{taglevel}
 
 popd
 
