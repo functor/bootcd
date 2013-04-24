@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.2
-%define taglevel 1
+%define taglevel 2
 
 # pldistro already in the rpm name
 %define release %{taglevel}%{?date:.%{date}}
@@ -114,6 +114,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Wed Apr 24 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-2
+- fix version number as it shows up in version.txt (was empty)
+
 * Thu Mar 07 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-1
 - turn off systemd traces at boot-time
 
