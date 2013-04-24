@@ -73,8 +73,8 @@ Conflicts: MyPLC <= 4.3
 
 pushd bootcd
 
-# Build the reference image
-./prep.sh %{pldistro} %{nodefamily} %{version}-%{taglevel}
+# Build the reference image - pass 3-fold version number to go in version.txt
+./prep.sh %{pldistro} %{nodefamily} %{version}
 
 popd
 
