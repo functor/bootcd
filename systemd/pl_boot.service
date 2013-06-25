@@ -2,7 +2,5 @@
 Description=pl_boot service
 
 [Service]
-ExecStart=/etc/init.d/pl_boot
-ExecStartPre=/etc/init.d/pl_sysinit
+ExecStart=/etc/init.d/pl_wrapper
 Type=oneshot
-
