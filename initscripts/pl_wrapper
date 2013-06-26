@@ -1,10 +1,13 @@
 #!/bin/bash
 #
 # nodes starting up with fedora18 - especially under kvm/qemu btw
-# tend to unreliably startup, this is an attempt to get more details 
-# on what is actually going on by running pl_boot and pl_sysinit in -x mode
-# and logging everything in /var/log/pl-boot
+# tend to startup unreliably, this is an attempt to get more details by
+# * running pl_boot and pl_sysinit in -x mode
+# * and logging everything in /var/log/pl-boot
 #
 # also we just run both in sequence instead of relying on convoluted systemd dependencies
+# 
+# while we're at it we deamonize the whole thing so ayatollesque systemd is happier
 #
-(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) >> /var/log/pl-boot 2>&1
+exec 0<&-
+(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) >> /var/log/pl-boot 2>&1 &
