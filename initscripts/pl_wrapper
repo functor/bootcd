@@ -7,7 +7,4 @@
 #
 # also we just run both in sequence instead of relying on convoluted systemd dependencies
 # 
-# while we're at it we deamonize the whole thing so ayatollesque systemd is happier
-#
-exec 0<&-
-(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) >> /var/log/pl-boot 2>&1 &
+(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) >> /var/log/bootcd.log 2>&1
