@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.2
-%define taglevel 3
+%define taglevel 4
 
 # pldistro already in the rpm name
 %define release %{taglevel}%{?date:.%{date}}
@@ -114,6 +114,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Fri Mar 21 2014 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-4
+- no change, only some internal comments were changed
+
 * Wed Jun 26 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-3
 - attempt to make node take off more reliable with pl_wrapper
 
