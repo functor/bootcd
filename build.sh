@@ -230,19 +230,23 @@ function build_overlay () {
 
     BUILDTMP=$(mktemp -d ${BUILDTMP}/bootcd.XXXXXX)
     push_cleanup rm -fr "${BUILDTMP}"
-    mkdir "${BUILDTMP}/isofs"
+
+    # initialize ISOFS
+    ISOFS="${BUILDTMP}/isofs"
+    mkdir -p "$ISOFS"
     for i in "$ISOREF"/isofs/{bootcd.img,kernel}; do
-	ln -s "$i" "${BUILDTMP}/isofs"
+	ln -s "$i" "$ISOFS"
     done
     # use new location as of fedora 12
     # used to be in /usr/lib/syslinux/isolinux.bin
     # removed backward compat in jan. 2015
-    official=/usr/share/syslinux/isolinux.bin
-    [ -f $official ] && cp $official "${BUILDTMP}/isofs"
-    # as of syslinux 5.0 (fedora 21) this file is required as well
-    official=/usr/share/syslinux/ldlinux.c32
-    [ -f $official ] && cp $official "${BUILDTMP}/isofs"
-    ISOFS="${BUILDTMP}/isofs"
+    # as of syslinux 5.0 (fedora 21) ldlinux.c32 is required by isolinux.bin
+    # the debug version can come in handy at times, and is 40k as well
+    isolinuxdir="/usr/share/syslinux"
+    isolinuxfiles="isolinux.bin ldlinux.c32 isolinux-debug.bin"
+    for isolinuxfile in $isolinuxfiles; do
+	[ -f $isolinuxdir/$isolinuxfile ] && cp $isolinuxdir/$isolinuxfile "${BUILDTMP}/isofs"
+    done
 
     # Root of the ISO and USB images
     echo "* Populating root filesystem..."
