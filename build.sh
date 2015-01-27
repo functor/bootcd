@@ -234,9 +234,14 @@ function build_overlay () {
     for i in "$ISOREF"/isofs/{bootcd.img,kernel}; do
 	ln -s "$i" "${BUILDTMP}/isofs"
     done
-    # the syslinux that comes with f12 has this file in a new location
-    cp "/usr/lib/syslinux/isolinux.bin" "${BUILDTMP}/isofs" \
-	|| cp "/usr/share/syslinux/isolinux.bin" "${BUILDTMP}/isofs" 
+    # use new location as of fedora 12
+    # used to be in /usr/lib/syslinux/isolinux.bin
+    # removed backward compat in jan. 2015
+    official=/usr/share/syslinux/isolinux.bin
+    [ -f $official ] && cp $official "${BUILDTMP}/isofs"
+    # as of syslinux 5.0 (fedora 21) this file is required as well
+    official=/usr/share/syslinux/ldlinux.c32
+    [ -f $official ] && cp $official "${BUILDTMP}/isofs"
     ISOFS="${BUILDTMP}/isofs"
 
     # Root of the ISO and USB images
@@ -387,7 +392,7 @@ TIMEOUT 40
 EOF
 
     # Create ISO image
-    echo "* Creating ISO image"
+    echo "* Creating ISO image in $(pwd)"
     mkisofs -o "$iso" $MKISOFS_OPTS $ISOFS
 }
 
