@@ -12,9 +12,16 @@ COMMAND=$(basename $0)
 DIRNAME=$(dirname $0)
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
-DEBUG_SYSTEMD=""
-# uncomment this on to get systemd's full log on console (slows things down)
-#DEBUG_SYSTEMD=true
+# debugging flags
+# keep KERNEL_DEBUG_ARGS void for production
+KERNEL_DEBUG_ARGS=""
+# and uncomment these to augment verbosity of boot phase
+# not everything works or is helpful, but well
+#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS debuginitrd showerr"
+#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS earlyprintk=vga loglevel=6"
+# for systemd - might slow down boot 
+#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug systemd.journald.forward_to_console=1"
+
 
 # defaults
 DEFAULT_TYPES="usb iso"
@@ -23,6 +30,9 @@ GRAPHIC_CONSOLE="graphic"
 SERIAL_CONSOLE="ttyS0:115200:n:8"
 CONSOLE_INFO=$GRAPHIC_CONSOLE
 MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+#isolinux-debug.bin is supposedly helpful as well if available,
+# when things don't work as expected
+#MKISOFS_OPTS="-R -J -r -f -b isolinux-debug.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
 FREE_SPACE=4096
 
 # command-line settable args
@@ -243,7 +253,7 @@ function build_overlay () {
     # as of syslinux 5.0 (fedora 21) ldlinux.c32 is required by isolinux.bin
     # the debug version can come in handy at times, and is 40k as well
     isolinuxdir="/usr/share/syslinux"
-    isolinuxfiles="isolinux.bin ldlinux.c32 isolinux-debug.bin"
+    isolinuxfiles="isolinux.bin ldlinux.c32 isolinux-debug.bin memdisk"
     for isolinuxfile in $isolinuxfiles; do
 	[ -f $isolinuxdir/$isolinuxfile ] && cp $isolinuxdir/$isolinuxfile "${BUILDTMP}/isofs"
     done
@@ -355,8 +365,9 @@ EOF
 #    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
     # output more systemd-related messages on the console
     KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console"
-    # this slows down system init but is very helpful when e.g. trying to run on a new distro
-    [ -n "$DEBUG_SYSTEMD" ] && KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.journald.forward_to_console=1"
+    # add any debug flag if any (defined in the header of this script)
+    KERNEL_ARGS="$KERNEL_ARGS $KERNEL_DEBUG_ARGS"
+    # propagate kernel args for later boot stages
     [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
 
     # Pack overlay files into a compressed archive
