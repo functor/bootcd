@@ -56,8 +56,7 @@ IFCONFIG_OUTPUT=/tmp/ifconfig
 DEFAULT_NET_CONF=0
 
 
-net_init_failed()
-{
+function net_init_failed() {
     echo
     echo $(date "+%H:%M:%S") " pl_netinit: network initialization failed,"
     echo $(date "+%H:%M:%S") " pl_netinit: shutting down machine in two hours"
@@ -67,8 +66,7 @@ net_init_failed()
 }
 
 # Function for checking the IP address to see if its sensible.
-check_ip()
-{
+function check_ip() {
     case "$*" in
         "" | *[!0-9.]* | *[!0-9]) return 1 ;;
     esac
@@ -83,8 +81,7 @@ check_ip()
 # return 1 if found and parsed. if this is the case, DEFAULT_NET_CONF will 
 # be set to 1. For any found configuration file, $USED_NET_CONF will
 # contain the validated contents
-find_node_config()
-{
+function find_node_config() {
     /bin/rm -f $TMP_OLD_FLOPPY_CONF_FILE 2>&1 > /dev/null
 
     echo $(date "+%H:%M:%S") " pl_netinit: looking for node configuration file on floppy"
