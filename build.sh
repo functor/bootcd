@@ -17,13 +17,8 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 # debugging flags
 # keep KERNEL_DEBUG_ARGS void for production
 KERNEL_DEBUG_ARGS=""
-# and uncomment these to augment verbosity of boot phase
-# not everything works or is helpful, but well
-#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS debuginitrd showerr"
-#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS earlyprintk=vga loglevel=6"
-# for systemd - might slow down boot 
-#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug systemd.journald.forward_to_console=1"
-
+# uncomment this to augment verbosity of boot phase
+#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug"
 
 # defaults
 DEFAULT_TYPES="usb iso"
@@ -363,8 +358,8 @@ EOF
     KERNEL_ARGS="$KERNEL_ARGS biosdevname=0"
     # making sure selinux is turned off - somehow this is needed with lxc/f14
     KERNEL_ARGS="$KERNEL_ARGS selinux=0"
-    # output more systemd-related messages on the serial line so it gets with log.txt
-    KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console systemd.log_level=debug console=ttyS0,115200"
+    # output systemd-related messages on the serial line so it gets with log.txt
+    KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console console=ttyS0,115200"
     # add any debug flag if any (defined in the header of this script)
     KERNEL_ARGS="$KERNEL_ARGS $KERNEL_DEBUG_ARGS"
     # propagate kernel args for later boot stages
