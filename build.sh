@@ -18,7 +18,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 # keep KERNEL_DEBUG_ARGS void for production
 KERNEL_DEBUG_ARGS=""
 # uncomment this to augment verbosity of boot phase
-#KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug"
+KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug"
 
 # defaults
 DEFAULT_TYPES="usb iso"
