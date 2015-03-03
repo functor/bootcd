@@ -17,8 +17,16 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 # debugging flags
 # keep KERNEL_DEBUG_ARGS void for production
 KERNEL_DEBUG_ARGS=""
-# uncomment this to augment verbosity of boot phase
-KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS systemd.log_level=debug"
+# add more flags here for debugging
+# KERNEL_DEBUG_ARGS="$KERNEL_DEBUG_ARGS some_other_kernel_arg"
+# see also
+#  (*) GetBootMedium that has some provisions for common
+#      kargs, like e.g. for removing the hangcheck feature,
+#      or for turning on debug messages for systemd
+#      these can be turned on with tags on the node
+#  (*) tests default config, that uses this feature so
+#      the tests can benefit these features, without deploying
+#      them by default in production
 
 # defaults
 DEFAULT_TYPES="usb iso"
