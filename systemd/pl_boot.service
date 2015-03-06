@@ -1,6 +1,5 @@
 [Unit]
 Description=pl_boot service
-Wants=getty@tty2.service
 Wants=network-online.target
 After=network.target
 
