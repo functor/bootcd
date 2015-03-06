@@ -51,9 +51,9 @@ MKISOFS_OPTS="-R -J -r -f -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-s
 
 sync-rewrap:
 	ssh root@$(KVMHOST) "(cd $(KVMDIR); \
-			     echo "Rewrapping bootcd.img"; \
-			     (cd overlay && find . | cpio --quiet -c -o) | gzip -9 > iso/overlay.img; \
 			     echo "Rewrapping overlay.img"; \
-			     (cd bootcd && find . | cpio --quiet -c -o) | gzip -9 > iso/bootcd.img; \
+			     (cd overlay && find . | cpio --quiet -c -o) | gzip -1 > iso/overlay.img; \
+			     echo "Rewrapping bootcd.img"; \
+			     (cd bootcd && find . | cpio --quiet -c -o) | gzip -1 > iso/bootcd.img; \
 			     mkisofs -o $(NODE).iso $(MKISOFS_OPTS) iso/; \
 			    )"

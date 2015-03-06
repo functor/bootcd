@@ -13,10 +13,11 @@ And namely, the set of systemd files that describe booting off the CD image
 
 * and then run it on the testmaster side like this
 
-    iterate-ping-node <nb_iterations>
+  `iterate-ping-node -o run01 <nb_iterations>`
 
 * This allows to run a given bootcd (the iso computed for one node) several times over, and to gather all logs from qemu
-* This is **only** restarting the kvm/qemu node several times, nothing is done to recompute the .iso itself (see below for that). So the game is to easily simulate how a change to `bootcd` would affect a node ISO without rebuilding the whole damn thing.
+* This is **only** restarting the kvm/qemu node several times, nothing is done to recompute the .iso itself (see below for that). So the game is to easily simulate how a change to `bootcd` would affect a node ISO without rebuilding the whole damn thing
+* When -o is provided, the directory argument is created and all log files are stored in there
 
 ## Easily redo a .iso
 
