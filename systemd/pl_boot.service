@@ -1,8 +1,10 @@
 [Unit]
 Description=pl_boot service
-Requires=network-online.target
-After=network-online.target
+Wants=getty@tty2.service
+Wants=network-online.target
+After=network.target
 
 [Service]
-ExecStart=/etc/init.d/pl_wrapper
+ExecStart=/etc/init.d/pl_sysinit
+ExecStart=/etc/init.d/pl_boot
 Type=oneshot
