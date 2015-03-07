@@ -3,9 +3,12 @@ Description=pl_boot service
 Wants=network-online.target
 After=network.target
 
-# in debug mode we fork bash -x so that we can get a grip on
-# what exactly is going on in here
 [Service]
-ExecStart=/bin/bash -x /etc/init.d/pl_sysinit > /dev/console
-ExecStart=/bin/bash -x /etc/init.d/pl_boot > /dev/console
+# it is possible to mention ExecStart several times
+#ExecStart=/etc/init.d/pl_sysinit
+#ExecStart=/etc/init.d/pl_boot
+# However pl_wrapper is a convenience that lets us
+# reliably redirect outputs to the console
+ExecStart=/etc/init/pl_wrapper
 Type=oneshot
+
