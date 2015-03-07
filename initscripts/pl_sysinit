@@ -2,10 +2,6 @@
 
 . /etc/init.d/pl_functions
 
-echo pl_sysinit on console > /dev/console
-
-echo pl_sysinit on ttyS0 > /dev/ttyS0
-
 echo ""
 echo "PlanetLab BootCD - distro @PLDISTRO@ based on @FCDISTRO@"
 

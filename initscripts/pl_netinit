@@ -305,4 +305,3 @@ echo $(date "+%H:%M:%S") " pl_netinit: attempting to start networking"
 /sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT
 
 echo $(date "+%H:%M:%S") " pl_netinit: network online"
-
