@@ -283,9 +283,28 @@ if [[ -z "$ETH_DEVICE" ]]; then
     net_init_failed
 fi
 
+# within a systemd-driven startup, we often see this stage
+# triggered before the network is actually up
+# although of course we have network-online.target
+# as a requirement; go figure what systemd actually does..
+
+# in any case, let us try to work around that by allowing some delay
+# here
+
+TIMEOUT=30
+while true; do
+    /sbin/ifconfig $ETH_DEVICE >& /dev/null && continue
+    TIMEOUT=$(($TIMEOUT-1))
+    [ $TIMEOUT -le 0 ] && net_init_failed
+    sleep 1
+    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE, ${TIMEOUT}s remaining "
+done
+
 
 # actually check to make sure ifconfig <device> succeeds
+
 /sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
+
 if [[ $? -ne 0 ]]; then
     echo $(date "+%H:%M:%S") " pl_netinit: device $ETH_DEVICE does not exist, most likely"
     echo $(date "+%H:%M:%S") " pl_netinit: this CD does not have hardware support for your"
