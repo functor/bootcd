@@ -7,4 +7,4 @@
 #
 # also we just run both in sequence instead of relying on convoluted systemd dependencies
 # 
-(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) >& /dev/console
+(bash -x /etc/init.d/pl_sysinit ; bash -x /etc/init.d/pl_boot) > /dev/console 2>&1
