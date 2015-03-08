@@ -44,6 +44,14 @@ sync-clean:
 
 # once sync-mount is OK you can start tweaking the contents of bootcd/ and overlay/ manually
 #
+# -- or -- use this target to push the files in initscripts/ and systemd/ into
+# that newly created bootcd/ before running sync-rewrap
+RSYNC = rsync -av --exclude .du
+
+sync-push:
+	$(RSYNC) initscripts/ root@$(KVMHOST):$(KVMDIR)/bootcd/etc/init.d/
+	$(RSYNC) systemd/ root@$(KVMHOST):$(KVMDIR)/bootcd/etc/systemd/system/
+
 # and then use this to rebuild a new .iso
 
 # same as in build.sh
