@@ -1,6 +1,8 @@
 #!/bin/sh
 #-*-shell-script-*-
 
+set -x
+
 # the name of the floppy based network configuration
 # files (checked first). the name planet.cnf is kept
 # for backward compatibility with old nodes, and only
@@ -293,19 +295,20 @@ fi
 
 TIMEOUT=30
 while true; do
-    /sbin/ifconfig $ETH_DEVICE >& /dev/null && continue
+    if /sbin/ifconfig $ETH_DEVICE >& /dev/null; then
+	echo Device $ETH_DEVICE found - proceeding - timeout=$TIMEOUT
+	break
+    fi
+    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE, ${TIMEOUT}s remaining "
     TIMEOUT=$(($TIMEOUT-1))
     [ $TIMEOUT -le 0 ] && net_init_failed
     sleep 1
-    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE, ${TIMEOUT}s remaining "
 done
 
 
 # actually check to make sure ifconfig <device> succeeds
 
-/sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null
-
-if [[ $? -ne 0 ]]; then
+/sbin/ifconfig $ETH_DEVICE up 2>&1 > /dev/null || {
     echo $(date "+%H:%M:%S") " pl_netinit: device $ETH_DEVICE does not exist, most likely"
     echo $(date "+%H:%M:%S") " pl_netinit: this CD does not have hardware support for your"
     echo $(date "+%H:%M:%S") " pl_netinit: network adapter. please send the following lines"
@@ -318,7 +321,7 @@ if [[ $? -ne 0 ]]; then
     echo ========== ifconfig beg
 
     net_init_failed
-fi
+}
 
 echo $(date "+%H:%M:%S") " pl_netinit: attempting to start networking"
 /sbin/service network start
