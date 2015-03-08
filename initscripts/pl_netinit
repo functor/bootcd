@@ -291,9 +291,12 @@ if [[ $? -ne 0 ]]; then
     echo $(date "+%H:%M:%S") " pl_netinit: this CD does not have hardware support for your"
     echo $(date "+%H:%M:%S") " pl_netinit: network adapter. please send the following lines"
     echo $(date "+%H:%M:%S") " pl_netinit: to your PlanetLab support for further assistance"
-    echo
+    echo ========== lspci beg
     /sbin/lspci -n | /bin/grep "Class 0200"    
-    echo
+    echo ========== lspci end
+    echo ========== ifconfig beg
+    /sbin/ifconfig
+    echo ========== ifconfig beg
 
     net_init_failed
 fi
