@@ -1,5 +1,13 @@
 #!/bin/bash
 
+### xxx tmp debug
+
+set -x
+echo pl_boot on console > /dev/console
+exec > /dev/console
+echo pl_boot plain
+
+###
 . /etc/init.d/pl_functions
 
 . /tmp/planet.cnf

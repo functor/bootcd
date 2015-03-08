@@ -1,5 +1,13 @@
 #!/bin/sh
 
+### xxx tmp debug
+
+set -x
+echo pl_sysinit on console > /dev/console
+exec > /dev/console
+echo pl_sysinit plain
+
+###
 . /etc/init.d/pl_functions
 
 echo ""
