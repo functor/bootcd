@@ -1,12 +1,9 @@
 #!/bin/sh
 
-### xxx tmp debug
+### make sure this output shows up in the console
 
-set -x
-echo pl_sysinit on console > /dev/console
 exec 2>&1
 exec > /dev/console
-echo pl_sysinit plain
 
 ###
 . /etc/init.d/pl_functions

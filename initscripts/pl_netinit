@@ -61,6 +61,17 @@ DEFAULT_NET_CONF=0
 function net_init_failed() {
     echo
     echo $(date "+%H:%M:%S") " pl_netinit: network initialization failed,"
+    echo
+    echo For forensics
+    echo
+    echo ========== lspci beg
+    /sbin/lspci -n | /bin/grep "Class 0200"    
+    echo ========== lspci end
+    echo
+    echo ========== ifconfig beg
+    /sbin/ifconfig
+    echo ========== ifconfig end
+    echo 
     echo $(date "+%H:%M:%S") " pl_netinit: shutting down machine in two hours"
     /bin/sleep 2h
     /sbin/shutdown -h now
@@ -286,22 +297,24 @@ if [[ -z "$ETH_DEVICE" ]]; then
 fi
 
 # within a systemd-driven startup, we often see this stage
-# triggered before the network is actually up
+# triggered before the network interface is actually exposed
+# by udev/kernel
 # although of course we have network-online.target
 # as a requirement; go figure what systemd actually does..
 
 # in any case, let us try to work around that by allowing some delay
 # here
 
-TIMEOUT=30
+ALLOW=5
+COUNTER=0
 while true; do
     if /sbin/ifconfig $ETH_DEVICE >& /dev/null; then
-	echo Device $ETH_DEVICE found - proceeding - timeout=$TIMEOUT
+	echo "pl_netinit: device present $ETH_DEVICE, proceeding (${COUNTER}s/${ALLOW}s)"
 	break
     fi
-    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE, ${TIMEOUT}s remaining "
-    TIMEOUT=$(($TIMEOUT-1))
-    [ $TIMEOUT -le 0 ] && net_init_failed
+    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE,${COUNTER}s/${ALLOW}s"
+    COUNTER=$(($COUNTER+1))
+    [ $COUNTER -ge 0 ] && net_init_failed
     sleep 1
 done
 
@@ -313,13 +326,6 @@ done
     echo $(date "+%H:%M:%S") " pl_netinit: this CD does not have hardware support for your"
     echo $(date "+%H:%M:%S") " pl_netinit: network adapter. please send the following lines"
     echo $(date "+%H:%M:%S") " pl_netinit: to your PlanetLab support for further assistance"
-    echo ========== lspci beg
-    /sbin/lspci -n | /bin/grep "Class 0200"    
-    echo ========== lspci end
-    echo ========== ifconfig beg
-    /sbin/ifconfig
-    echo ========== ifconfig beg
-
     net_init_failed
 }
 
