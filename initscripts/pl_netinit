@@ -314,7 +314,7 @@ while true; do
     fi
     echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE,${COUNTER}s/${ALLOW}s"
     COUNTER=$(($COUNTER+1))
-    [ $COUNTER -ge 0 ] && net_init_failed
+    [ $COUNTER -ge $ALLOW ] && net_init_failed
     sleep 1
 done
 
