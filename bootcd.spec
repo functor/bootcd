@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.2
-%define taglevel 4
+%define taglevel 5
 
 # pldistro already in the rpm name
 %define release %{taglevel}%{?date:.%{date}}
@@ -114,6 +114,9 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Fri Apr 03 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-5
+- changes for fedora 21 and its new release of syslinux
+
 * Fri Mar 21 2014 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-4
 - no change, only some internal comments were changed
 
