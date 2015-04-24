@@ -120,7 +120,7 @@ install -d -m 755 $isofs
 for kernel in $bootcd/boot/vmlinuz-* ; do
     if [ -f $kernel ] ; then
 	install -D -m 644 $kernel $isofs/kernel
-	echo "kernel created from $kernel" > $isofs/kernel.from
+	echo "* kernel created from $kernel" > $isofs/kernel.from
     fi
 done
 
