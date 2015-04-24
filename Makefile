@@ -65,3 +65,7 @@ sync-rewrap:
 			     (cd bootcd && find . | cpio --quiet -c -o) | gzip -1 > iso/bootcd.img; \
 			     mkisofs -o $(NODE).iso $(MKISOFS_OPTS) iso/; \
 			    )"
+
+# install just build.sh in the myplc - assuming it has no bonding links..
+sync-build:
+	$(RSYNC) build.sh root@$(PLCHOSTLXC):/vservers/$(GUESTNAME)/usr/share/bootcd\*/
