@@ -259,7 +259,10 @@ function build_overlay () {
     # as of syslinux 6.05 (fedora 21) ldlinux.c32 is required by isolinux.bin
     # the debug version can come in handy at times, and is 40k as well
     isolinuxdir="/usr/share/syslinux"
-    isolinuxfiles="isolinux.bin ldlinux.c32 isolinux-debug.bin memdisk"
+    # ship only what is mandatory, and forget about
+    # (*) isolinux-debug.bin as its name confuses mkisofs
+    # (*) memdisk that is not useful
+    isolinuxfiles="isolinux.bin ldlinux.c32"
     for isolinuxfile in $isolinuxfiles; do
 	[ -f $isolinuxdir/$isolinuxfile ] && cp $isolinuxdir/$isolinuxfile "${BUILDTMP}/isofs"
     done
@@ -366,8 +369,6 @@ EOF
     KERNEL_ARGS="$KERNEL_ARGS biosdevname=0"
     # making sure selinux is turned off - somehow this is needed with lxc/f14
     KERNEL_ARGS="$KERNEL_ARGS selinux=0"
-    # output systemd-related messages on the serial line so it gets with log.txt
-    KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console console=ttyS0,115200"
     # add any debug flag if any (defined in the header of this script)
     KERNEL_ARGS="$KERNEL_ARGS $KERNEL_DEBUG_ARGS"
     # propagate kernel args for later boot stages
@@ -412,7 +413,11 @@ LABEL planetlab-bootcd
 EOF
 
     # Create ISO image
-    echo "* Creating ISO image in $(pwd)"
+    echo "* Generated isolinux.cfg -------------------- BEG"
+    cat $ISOFS/isolinux.cfg
+    echo "* Generated isolinux.cfg -------------------- END"
+    echo "* Creating ISO image in pwd=$(pwd)"
+    echo "* with command mkisofs -o $iso $MKISOFS_OPTS $ISOFS"
     mkisofs -o "$iso" $MKISOFS_OPTS $ISOFS
 }
 
