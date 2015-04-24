@@ -3,7 +3,7 @@
 
 %define name bootcd-%{nodefamily}
 %define version 5.2
-%define taglevel 5
+%define taglevel 6
 
 # pldistro already in the rpm name
 %define release %{taglevel}%{?date:.%{date}}
@@ -114,6 +114,11 @@ rm -rf $RPM_BUILD_ROOT
 /etc/plc.d
 
 %changelog
+* Fri Apr 24 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-6
+- remove default kargs systemd.log_target=console console=ttyS0,115200
+- simpler bootcd layout (no memdisk nor isolinux-debug.bin)
+- keep track of actual kargs in log file for build.sh
+
 * Fri Apr 03 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - bootcd-5.2-5
 - changes for fedora 21 and its new release of syslinux
 
