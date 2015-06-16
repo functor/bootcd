@@ -60,7 +60,7 @@ DEFAULT_NET_CONF=0
 
 function net_init_failed() {
     echo
-    echo $(date "+%H:%M:%S") " pl_netinit: network initialization failed,"
+    echo $(date "+%H:%M:%S") " pl_netinit: network initialization failed with interface $ETH_DEVICE"
     echo
     echo For forensics
     echo
@@ -71,7 +71,11 @@ function net_init_failed() {
     echo ========== ifconfig beg
     /sbin/ifconfig
     echo ========== ifconfig end
+    echo ========== ip address show beg
+    ip address show
+    echo ========== ip address show end
     echo 
+    echo $(date "+%H:%M:%S") " pl_netinit: network initialization failed with interface $ETH_DEVICE"
     echo $(date "+%H:%M:%S") " pl_netinit: shutting down machine in two hours"
     /bin/sleep 2h
     /sbin/shutdown -h now
@@ -309,10 +313,10 @@ ALLOW=5
 COUNTER=0
 while true; do
     if /sbin/ifconfig $ETH_DEVICE >& /dev/null; then
-	echo "pl_netinit: device present $ETH_DEVICE, proceeding (${COUNTER}s/${ALLOW}s)"
+	echo $(date "+%H:%M:%S") " pl_netinit: device present $ETH_DEVICE, proceeding (${COUNTER}s/${ALLOW}s)"
 	break
     fi
-    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE,${COUNTER}s/${ALLOW}s"
+    echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE - ${COUNTER}s/${ALLOW}s"
     COUNTER=$(($COUNTER+1))
     [ $COUNTER -ge $ALLOW ] && net_init_failed
     sleep 1
