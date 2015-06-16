@@ -321,6 +321,9 @@ while true; do
 	break
     fi
     echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE - ${COUNTER}s/${ALLOW}s"
+    echo ========== ifconfig beg
+    /sbin/ifconfig
+    echo ========== ifconfig end
     COUNTER=$(($COUNTER+1))
     [ $COUNTER -ge $ALLOW ] && net_init_failed
     sleep 1
