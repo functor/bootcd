@@ -267,7 +267,7 @@ ETH_DEVICE=
 if [[ -n "$NET_DEVICE" ]]; then
     # the user specified a mac address we should use. find the network
     # device for it.
-    NET_DEVICE=$(tr A-Z a-z <<<$NET_DEVICE)
+    NET_DEVICE=$(tr A-Z a-z <<< $NET_DEVICE)
 
     pushd /sys/class/net
     for device in *; do
@@ -309,7 +309,11 @@ fi
 # in any case, let us try to work around that by allowing some delay
 # here
 
-ALLOW=5
+# tmp: Thierry June 2015
+# on fedora 21 nodes we see this running in a context where eth0 is not known to the system
+# could be related to a dependency that we poorly describe to systemd
+# I am increasing this timeout to 2 minutes in order to check that conjecture
+ALLOW=120
 COUNTER=0
 while true; do
     if /sbin/ifconfig $ETH_DEVICE >& /dev/null; then
