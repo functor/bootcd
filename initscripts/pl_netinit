@@ -313,7 +313,7 @@ fi
 # on fedora 21 nodes we see this running in a context where eth0 is not known to the system
 # could be related to a dependency that we poorly describe to systemd
 # I am increasing this timeout to 2 minutes in order to check that conjecture
-ALLOW=120
+ALLOW=60
 COUNTER=0
 while true; do
     if /sbin/ifconfig $ETH_DEVICE >& /dev/null; then
@@ -321,9 +321,11 @@ while true; do
 	break
     fi
     echo $(date "+%H:%M:%S") " pl_netinit: waiting for device $ETH_DEVICE - ${COUNTER}s/${ALLOW}s"
-    echo ========== ifconfig beg
+    set -x
     /sbin/ifconfig
-    echo ========== ifconfig end
+    journalctl -b | egrep 'eth|bnx|udev'
+    systemctl list-unit-files | grep -i network
+    set +x 
     COUNTER=$(($COUNTER+1))
     [ $COUNTER -ge $ALLOW ] && net_init_failed
     sleep 1
