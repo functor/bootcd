@@ -98,11 +98,20 @@ if [ -d $bootcd/etc/systemd/system ] ; then
     for file in pl_boot.service pl_boot.target ; do
         install -D -m 644 systemd/$file $bootcd/etc/systemd/system
     done
-    echo "* Enabling getty on tty2"
+    echo "* Configuration BootCD to start up pl_boot"
+    # first attempt was to totally replace everything with pl_boot.target
+    # this however leads to physical f21 nodes not starting up properly
+    # because biosdevname is not properly honored and so pl_netinit gets confused
     # select pl_boot target this way instead of using kargs, as kargs apply to kexec boot as well
-    ln -sf /etc/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
-    [ -d $bootcd/etc/systemd/system/pl_boot.target.wants ] || mkdir -p $bootcd/etc/systemd/system/pl_boot.target.wants
-    ln -sf /usr/lib/systemd/system/getty@.service $bootcd/etc/systemd/system/pl_boot.target.wants/getty@tty2.service
+    # ln -sf /etc/systemd/system/pl_boot.target $bootcd/etc/systemd/system/default.target
+    #[ -d $bootcd/etc/systemd/system/pl_boot.target.wants ] || mkdir -p $bootcd/etc/systemd/system/pl_boot.target.wants
+    # Let's try another approach completely
+    # xxx if that worked we would not need pl_boot.target at all
+    mkdir -p $bootcd/etc/systemd/system/default.target.wants
+    ln -sf /etc/systemd/system/pl_boot.service $bootcd/etc/systemd/system/default.target.wants
+    echo "* Enabling getty on tty2"
+    #ln -sf /usr/lib/systemd/system/getty@.service $bootcd/etc/systemd/system/pl_boot.target.wants/getty@tty2.service
+    ln -sf /usr/lib/systemd/system/getty@.service $bootcd/etc/systemd/system/default.target.wants/getty@tty2.service
 fi
 
 # Install fallback node configuration file
