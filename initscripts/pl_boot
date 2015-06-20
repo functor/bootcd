@@ -117,6 +117,8 @@ while : ; do
 	/bin/sleep 30
     fi
 
+    # June 2015 : using --tlsv1 instead of sslv3 that should be available
+    # on all myplc from f14 inclusive
     # assemble the curl transaction
     CURL_CMD="/usr/bin/curl \
         --connect-timeout 60 \
@@ -128,7 +130,7 @@ while : ; do
         --form nonce=</tmp/nonce \
         --location \
         --output $UNVERIFIED_SCRIPT \
-        --sslv3  \
+        --tlsv1  \
         --silent \
         --show-error \
         --fail \
