@@ -349,3 +349,24 @@ echo $(date "+%H:%M:%S") " pl_netinit: attempting to start networking"
 /sbin/ifconfig $ETH_DEVICE > $IFCONFIG_OUTPUT
 
 echo $(date "+%H:%M:%S") " pl_netinit: network online"
+
+echo "BEG post pl_netinit forensics"
+
+file=/root/.ssh/authorized_keys
+echo "$file"
+if ! [ -f "$file" ]; then
+    echo "!!!!!!!!!! missing $file"
+else
+    echo "---------- $file"
+    cat $file
+fi
+
+file="/etc/ssh/sshd_config"    
+if ! [ -f "$file" ]; then
+    echo "!!!!!!!!!! missing $file"
+else
+    echo '---------- egrep Pass|Auth|PAM' $file
+    egrep 'Pass|Auth|PAM' $file
+fi
+
+echo "END post pl_netinit forensics"
