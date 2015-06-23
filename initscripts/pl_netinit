@@ -365,8 +365,8 @@ file="/etc/ssh/sshd_config"
 if ! [ -f "$file" ]; then
     echo "!!!!!!!!!! missing $file"
 else
-    echo '---------- egrep Pass|Auth|PAM' $file
-    egrep 'Pass|Auth|PAM' $file
+    echo '---------- egrep Pass|Auth|PAM|Root' $file
+    grep -v '^#' $file | egrep 'Pass|Auth|PAM|Root'
 fi
 
 echo "END post pl_netinit forensics"
