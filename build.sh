@@ -353,6 +353,13 @@ EOF
     # build/passwd copied out by prep.sh
     sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" ${VARIANT}/passwd >$OVERLAY/etc/passwd
 
+    # recent bootCDs rely on a standard systemd startup sequence
+    # so allow debug key to enter in this context whenever that makes sense
+    mkdir -p $OVERLAY/root/.ssh
+    chmod 700 $OVERLAY/root/.ssh
+    cp $PLC_DEBUG_SSH_KEY_PUB $OVERLAY/root/.ssh/authorized_keys
+    chmod 600 $OVERLAY/root/.ssh/authorized_keys
+
     # Install node configuration file (e.g., if node has no floppy disk or USB slot)
     if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
 	echo "* Installing node configuration file $NODE_CONFIGURATION_FILE -> /usr/boot/plnode.txt of the bootcd image"
