@@ -353,12 +353,18 @@ EOF
     # build/passwd copied out by prep.sh
     sed -e "s@^root:[^:]*:\(.*\)@root:$ROOT_PASSWORD:\1@" ${VARIANT}/passwd >$OVERLAY/etc/passwd
 
-    # recent bootCDs rely on a standard systemd startup sequence
-    # so allow debug key to enter in this context whenever that makes sense
-    mkdir -p $OVERLAY/root/.ssh
-    chmod 700 $OVERLAY/root/.ssh
-    cp $PLC_DEBUG_SSH_KEY_PUB $OVERLAY/root/.ssh/authorized_keys
-    chmod 600 $OVERLAY/root/.ssh/authorized_keys
+# this is more harmful than helpful
+# idea being, since we start a full-featured fedora system now, it would
+# have been nice to be able to enter sshd very early on - before bm has even been downloaded
+# however somehow it appears that these lines ruin all chances to enter ssh at all
+# either early or even later on;
+# plus, it is unclear what this would give on non=systemd nodes, so I am backing off for now    
+#    # recent bootCDs rely on a standard systemd startup sequence
+#    # so allow debug key to enter in this context whenever that makes sense
+#    mkdir -p $OVERLAY/root/.ssh
+#    chmod 700 $OVERLAY/root/.ssh
+#    cp $PLC_DEBUG_SSH_KEY_PUB $OVERLAY/root/.ssh/authorized_keys
+#    chmod 600 $OVERLAY/root/.ssh/authorized_keys
 
     # Install node configuration file (e.g., if node has no floppy disk or USB slot)
     if [ -f "$NODE_CONFIGURATION_FILE" ] ; then
