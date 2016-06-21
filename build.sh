@@ -12,10 +12,6 @@ COMMAND=$(basename $0)
 DIRNAME=$(dirname $0)
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
-DEBUG_SYSTEMD=""
-# uncomment this on to get systemd's full log on console (slows things down)
-#DEBUG_SYSTEMD=true
-
 # defaults
 DEFAULT_TYPES="usb iso"
 # Leave 4 MB of free space
@@ -32,7 +28,7 @@ OUTPUT_BASE=
 DRY_RUN=""
 OUTPUT_NAME=""
 TYPES=""
-KERNEL_ARGS=""
+KARGS_STR="pci=nobios acpi=off"
 
 # various globals
 BUILDTMP=""
@@ -45,6 +41,7 @@ console_dev=""
 console_baud=""
 console_spec=""
 console_serial_line=""
+kernel_args=""
 
 
 #################### compute all supported types
@@ -164,7 +161,7 @@ function parse_command_line () {
 	    o) OUTPUT_NAME="$OPTARG" ;;
 	    C) CUSTOM_DIR="$OPTARG" ;;
 	    V) VARIANT="$OPTARG" ;;
-	    k) KERNEL_ARGS="$KERNEL_ARGS $OPTARG" ;;
+	    k) KARGS_STR="$KARGS_STR $OPTARG" ;;
 	    n) DRY_RUN=true ;;
 	    h|*) usage ;;
 	esac
@@ -334,21 +331,14 @@ EOF
 	plnet -- --root $OVERLAY --files-only --program BootCD $NODE_ID
     fi
 
-    [ -n "$IS_SERIAL" ] && KERNEL_ARGS="$KERNEL_ARGS ${console_spec}"
+    if [ -n "$IS_SERIAL" ] ; then
+	KARGS_STR="$KARGS_STR ${console_spec}"
+    fi
 
-    # tmp: should be restricted to f15 nodes and above
-    # making sure the network interfaces are still numbered eth0 and above
-    KERNEL_ARGS="$KERNEL_ARGS biosdevname=0"
-    # making sure selinux is turned off - somehow this is needed with lxc/f14
-    KERNEL_ARGS="$KERNEL_ARGS selinux=0"
-# cannot use this mecahnism to set systemd default target because this applies to kexec boots as well
-#    # set default target for systemd
-#    KERNEL_ARGS="$KERNEL_ARGS systemd.unit=pl_boot.target"
-    # output more systemd-related messages on the console
-    KERNEL_ARGS="$KERNEL_ARGS systemd.log_target=console"
-    # this slows down system init but is very helpful when e.g. trying to run on a new distro
-    [ -n "$DEBUG_SYSTEMD" ] && KERNEL_ARGS="$KERNEL_ARGS systemd.log_level=debug systemd.journald.forward_to_console=1"
-    [ -n "$KERNEL_ARGS" ] && echo "$KERNEL_ARGS" > $OVERLAY/kargs.txt
+    if [ -n "$KARGS_STR" ] ; then
+	echo "$KARGS_STR" > $OVERLAY/kargs.txt
+	kernel_args=$KARGS_STR
+    fi
 
     # Pack overlay files into a compressed archive
     echo "* Compressing overlay image"
@@ -380,7 +370,7 @@ function build_iso() {
     cat >$ISOFS/isolinux.cfg <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -433,7 +423,7 @@ EOF
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -473,7 +463,7 @@ EOF
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${KERNEL_ARGS}
+APPEND ramdisk_size=$ramdisk_size initrd=bootcd.img,overlay.img${custom:+,custom.img} root=/dev/ram0 rw ${kernel_args}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -635,7 +625,7 @@ function build_iso_cramfs() {
     cat >$tmp/isolinux.cfg <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${KERNEL_ARGS}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${kernel_args}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
@@ -673,7 +663,7 @@ function build_usb_cramfs() {
     cat >$tmp <<EOF
 ${console_serial_line}
 DEFAULT kernel
-APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${KERNEL_ARGS}
+APPEND ramdisk_size=$cramfs_size initrd=cramfs.img root=/dev/ram0 ro ${kernel_args}
 DISPLAY pl_version
 PROMPT 0
 TIMEOUT 40
